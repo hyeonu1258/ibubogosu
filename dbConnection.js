@@ -1,9 +1,9 @@
 var mysql = require('mysql');
 
 var dbConfig = {
-  host : 'localhost',
-  user : 'root',
-  password : '123456',
+  host : 'ibubogosu.ct3yjugtyuqo.ap-northeast-2.rds.amazonaws.com',
+  user : 'admin',
+  password : 'adminadmin',
   port : '3306',
   multiplestatements : true,
   database : 'ibubogosu'
