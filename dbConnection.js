@@ -1,5 +1,5 @@
 var mysql = require('mysql');
-
+// db
 var dbConfig = {
   host : 'ibubogosu.ct3yjugtyuqo.ap-northeast-2.rds.amazonaws.com',
   user : 'admin',
