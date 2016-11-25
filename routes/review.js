@@ -11,10 +11,13 @@ router.route('/:review_id/noImage')
       .get(noImageReviewList);
 
 router.route('/:review_id/update')
-      .get(searchReview)
       .post(registReview)
       .put(adjustReview)
       .delete(removeReview);
+
+router.route('/:keyword')
+      .get(autoComplete)
+      .post(searchReview)
 
 module.exports = router;
 
@@ -80,16 +83,31 @@ function imageReviewList(req, res) {
         }
       ],
       function(err, result) {
-        var comRevList;
-        res.send({err : {code : 0, msg : {}}, data : {revList : result[0], rating : result[1], comRevList : result[2]}});
+        console.log('result : ', result);
+        res.send({err : {code : 0, msg : ''}, data : {revList : result[0], rating : result[1], comRevList : result[2]}});
       });
     }
   });
 }
 
 function noImageReviewList(req, res) {
-
+  // var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
+  //
+  // pool.getConnection(err, conn) {
+  //   if(err) {
+  //     console.log('connection err', err);
+  //     res.send({err : {code : 1, msg : 'db connection err'}, data : {}});
+  //   } else {
+  //     async.series([
+  //       function(callback) {
+  //         conn.query(comReviewQuery, [req.params.review_id, req.params.type],
+  //           function(err, rows) {}
+  //       });
+  //     ]);
+  //   }
+  // }
 }
+
 
 function searchReview(req, res) {
 
@@ -104,5 +122,36 @@ function adjustReview(req, res) {
 }
 
 function removeReview(req, res) {
+
+}
+
+function autoComplete(req, res) {
+  var autoQuery = 'select prod_name from product where prod_name like ?;';
+  pool.getConnection(function(err, conn) {
+    if(err) {
+      console.log('db connection err');
+      res.send({err : {code : 1, msg : 'db connection err'}, data : {}});
+    } else {
+      conn.query(autoQuery, ['%'+req.params.keyword+'%'],
+      function(err, rows) {
+        if(err) {
+          console.log('auto query err', err);
+          res.send({err : {code : 1, msg : 'auto query err'}, data : {}});
+        } else {
+          if(rows.length <= 0) {
+            console.log('auto query result is 0');
+            console.log();
+            res.send({err : {code : 1, msg : 'auto query result is 0'}, data : {}});
+          } else {
+            console.log('result : ', rows);
+            res.send({err : {code : 0, msg : ''}, data : {prod_name : rows}});
+          }
+        }
+      });
+    }
+  });
+}
+
+function searchReview(req, res) {
 
 }
