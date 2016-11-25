@@ -31,7 +31,7 @@ function imageReviewList(req, res) {
 
   pool.getConnection(function(err, conn) {
     if(err) {
-      console.log('connection err', err);
+      console.log('db connection err', err);
       res.send({err : {code : 1, msg : 'db connection err'}, data : {}});
     } else {
       async.series([
@@ -129,7 +129,7 @@ function autoComplete(req, res) {
   var autoQuery = 'select prod_name from product where prod_name like ?;';
   pool.getConnection(function(err, conn) {
     if(err) {
-      console.log('db connection err');
+      console.log('db connection err', err);
       res.send({err : {code : 1, msg : 'db connection err'}, data : {}});
     } else {
       conn.query(autoQuery, ['%'+req.params.keyword+'%'],
@@ -144,7 +144,7 @@ function autoComplete(req, res) {
             res.send({err : {code : 1, msg : 'auto query result is 0'}, data : {}});
           } else {
             console.log('result : ', rows);
-            res.send({err : {code : 0, msg : ''}, data : {prod_name : rows}});
+            res.send({err : {code : 0, msg : ''}, data : rows});
           }
         }
       });
@@ -153,5 +153,27 @@ function autoComplete(req, res) {
 }
 
 function searchReview(req, res) {
-
+  var searchQuery = 'select prod_id, prod_name, prod_image_url, shopping_site_name, folder_count from product where prod_name like ?;';
+  pool.getConnection(function(err, conn) {
+    if(err) {
+      console.log('db connection err', err);
+      res.send({err : {code : 1, msg : 'db connection err'}, data : {}});
+    } else {
+      conn.query(searchQuery, ['%' + req.params.keyword + '%'],
+      function(err, rows) {
+        if(err) {
+          console.log('search query err', err);
+          res.send({err : {code : 1, msg : 'search query err'}});
+        } else {
+          if(rows.length <= 0) {
+            console.log('search query result is 0');
+            res.send({err : {code : 1, msg : 'search query result is 0'}});
+          } else {
+            console.log('result : ', rows);
+            res.send({err : {code : 0, msg : ''}, data : rows});
+          }
+        }
+      });
+    }
+  });
 }
