@@ -439,7 +439,7 @@ function autoComplete(req, res) {
                                     code: 1,
                                     msg: 'auto query result is 0'
                                 },
-                                data: {}
+                                data: []
                             });
                             conn.release();
                         } else {
