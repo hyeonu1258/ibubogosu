@@ -22,7 +22,7 @@ function prodList(req, res) {
                 data: {}
             });
         } else {
-            conn.query(prodQuery, [req.params.type, (req.params.count-1)*50 ,req.params.count*50],
+            conn.query(prodQuery, [req.params.type, (req.params.count-1)*50, 50],
                 function(err, rows) {
                     console.log(err, rows);
                     if (err) {
