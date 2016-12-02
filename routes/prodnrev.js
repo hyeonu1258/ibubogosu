@@ -9,7 +9,7 @@ router.route('/:type/:count')
     .get(prodList);
 
 function prodList(req, res) {
-    prodQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, p.folder_count, count(review_id) as review_count from product p join review r on p.prod_id = r.prod_id and r.type = ? group by p.prod_id having count(review_id) > 2 limit ?, ?';
+    prodQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, p.folder_count, (select count(*) from review where p.prod_id = review.prod_id ) as review_count from product p join review r on p.prod_id = r.prod_id where r.image_exist_chk = 1 group by p.prod_id having count(review_id) > 2';
     revQuery = 'select url.review_id, url.review_image_id, url.review_image_url from review_image_url url join review r on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where r.prod_id = ? group by r.review_id;';
     productList = [];
 
