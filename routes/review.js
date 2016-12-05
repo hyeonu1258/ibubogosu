@@ -20,25 +20,22 @@ var upload = multer({
     limits: {
         fileSize: Infinity
     }
-});
+}).single('image_review');
 
 const router = express.Router();
 
-router.route('/myReview').
-      .post(myReviewList);
+router.route('/myReview')
+    .post(myReviewList);
 
-router.route('/:review_id/:type/image')
-    .get(imageReviewList);
-
-router.route('/:review_id/:type/noImage')
-    .get(noImageReviewList);
+router.route('/:review_id/:type/:division')
+    .get(reviewList);
 
 router.route('/:review_id/update')
     .put(adjustReview)
     .delete(removeReview);
 
 router.route('/regist')
-    .post(upload.single('review_image'), registReview);
+    .post(upload, registReview);
 
 router.route('/:keyword')
     .get(autoComplete)
@@ -46,10 +43,12 @@ router.route('/:keyword')
 
 module.exports = router;
 
-function imageReviewList(req, res) {
+function reviewList(req, res) {
     var imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
     var countQuery = 'select count(*) as cnt from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.prod_rating=? join user u on r.user_id=u.user_id and u.type=?';
     var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
+    if (req.params.division == 3)
+        comReviewQuery = comReviewQuery + ' limit 5'
     var revList, response;
     var rating = new Array();
     var index = [0, 1, 2, 3, 4, 5];
@@ -67,75 +66,85 @@ function imageReviewList(req, res) {
         } else {
             async.series([
                     function(callback) {
-                        conn.query(imageReviewQuery, [req.params.review_id, req.params.type],
-                            function(err, rows) {
-                                if (err) {
-                                    console.log("image reivew query err", err);
-                                    conn.release();
-                                    res.send({
-                                        err: {
-                                            code: 1,
-                                            msg: 'image review query err'
-                                        },
-                                        data: []
-                                    });
-                                } else {
-                                    if (rows.length <= 0) {
-                                        console.log('image review query result is 0', err);
-                                        res.send({
-                                            err: {
-                                                code: 1,
-                                                msg: 'image review query result is 0'
-                                            },
-                                            data: []
-                                        });
-                                        conn.release();
-                                    } else {
-                                        callback(null, rows);
-                                    }
-                                }
-                            });
-                    },
-                    function(callback) {
-                        var a = function(i) {
-                            conn.query(countQuery, [req.params.review_id, i, req.params.type],
+                        if (req.params.division == 1) {
+                            conn.query(imageReviewQuery, [req.params.review_id, req.params.type],
                                 function(err, rows) {
                                     if (err) {
-                                        console.log('rating query err', err);
-                                        res.send({
+                                        console.log("image reivew query err", err);
+                                        conn.release();
+                                        var err = {
                                             err: {
                                                 code: 1,
-                                                msg: 'rating query err'
+                                                msg: 'image review query err'
                                             },
                                             data: []
-                                        });
-                                        conn.release();
+                                        }
+                                        callback(err);
                                     } else {
-                                        rating[i] = rows[0].cnt;
-                                        if (i == 5) {
-                                            callback(null, rating);
+                                        if (rows.length <= 0) {
+                                            console.log('image review query result is 0', err);
+                                            var err = {
+                                                err: {
+                                                    code: 1,
+                                                    msg: 'image review query result is 0'
+                                                },
+                                                data: []
+                                            }
+                                            callback(err);
+                                        } else {
+                                            callback(null, rows);
                                         }
                                     }
                                 });
-                        }
-                        for (i in index) a(i);
+                        } else
+                            callback(null, null);
                     },
                     function(callback) {
-                        conn.query(comReviewQuery, [req.params.review_id, req.params.type],
-                            function(err, rows) {
-                                if (err) {
-                                    console.log('common review query err', err);
-                                    conn.release();
-                                    res.send({
-                                        err: {
-                                            code: 1,
-                                            msg: 'common review query err'
-                                        },
-                                        data: []
+                        if (req.params.division == 2) {
+                            var a = function(i) {
+                                conn.query(countQuery, [req.params.review_id, i, req.params.type],
+                                    function(err, rows) {
+                                        if (err) {
+                                            console.log('rating query err', err);
+                                            res.send({
+                                                err: {
+                                                    code: 1,
+                                                    msg: 'rating query err'
+                                                },
+                                                data: []
+                                            });
+                                            conn.release();
+                                        } else {
+                                            rating[i] = rows[0].cnt;
+                                            if (i == 5) {
+                                                callback(null, rating);
+                                            }
+                                        }
                                     });
-                                } else
-                                    callback(null, rows);
-                            });
+                            }
+                            for (i in index) a(i);
+                        } else
+                            callback(null, null);
+                    },
+                    function(callback) {
+                        if (req.params.division == 2 || req.params.division == 3) {
+                            conn.query(comReviewQuery, [req.params.review_id, req.params.type],
+                                function(err, rows) {
+                                    if (err) {
+                                        console.log('common review query err', err);
+                                        var err = {
+                                            err: {
+                                                code: 1,
+                                                msg: 'common review query err'
+                                            },
+                                            data: []
+                                        }
+                                        calllback(err);
+                                    } else
+                                        callback(null, rows);
+                                });
+                        } else
+                            callback(null, null);
                     }
                 ],
                 function(err, result) {
@@ -162,61 +171,6 @@ function imageReviewList(req, res) {
                     }
                 }
             );
-        }
-    });
-}
-
-function noImageReviewList(req, res) {
-    var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
-
-    pool.getConnection(function(err, conn) {
-        if (err) {
-            console.log('connection err', err);
-            res.send({
-                err: {
-                    code: 1,
-                    msg: 'db connection err'
-                },
-                data: []
-            });
-            conn.release();
-        } else {
-            conn.query(comReviewQuery, [req.params.review_id, req.params.type],
-                function(err, rows) {
-                    if (err) {
-                        console.log('common review query err', err);
-                        res.send({
-                            err: {
-                                code: 1,
-                                msg: 'common review query err'
-                            },
-                            data: []
-                        });
-                        conn.release();
-                    } else {
-                        if (rows.length <= 0) {
-                            console.log('common review query result is 0');
-                            res.send({
-                                err: {
-                                    code: 1,
-                                    msg: 'common review query result is 0'
-                                },
-                                data: []
-                            });
-                            conn.release();
-                        } else {
-                            console.log('rows : ', rows);
-                            res.send({
-                                err: {
-                                    code: 0,
-                                    msg: ''
-                                },
-                                data: rows
-                            });
-                            conn.release();
-                        }
-                    }
-                });
         }
     });
 }
@@ -296,7 +250,7 @@ function registReview(req, res) {
                                     },
                                     data: []
                                 }
-                                callback(err);
+                                callback(error);
                             } else {
                                 prod_id = Number(rows[0].id.split('_')[1]) + 1;
                                 prod_id = 'stylenanda_' + prod_id;
@@ -339,7 +293,7 @@ function registReview(req, res) {
                                     },
                                     data: []
                                 }
-                                callback(err);
+                                callback(error);
                             } else {
                                 review_id = Number(rows[0].id.split('_')[1]) + 1;
                                 review_id = 'stylenanda_' + review_id
@@ -350,11 +304,11 @@ function registReview(req, res) {
                 },
                 function(callback) {
                     if (req.body.prod_id == -1) {
-                        regRevQuery = 'insert into review(review_id, review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, ?, ?, ?, ?, ?);';
-                        inserts = [review_id, req.body.review_content, 1, req.body.prod_rating, req.body.user_id, prod_id];
+                        regRevQuery = 'insert into review(review_id, review_content, image_exist_chk, prod_rating, user_id, prod_id, type, height, weight) values(?, ?, ?, ?, ?, ?, ?, ?, ?);';
+                        inserts = [review_id, req.body.review_content, 1, req.body.prod_rating, req.body.user_id, prod_id, req.body.type, req.body.height, req.body.weight];
                     } else {
-                        regRevQuery = 'insert into review(review_id, review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, ?, ?, ?, ?, ?);';
-                        inserts = [review_id, req.body.review_content, 1, req.body.prod_rating, req.body.user_id, req.body.prod_id];
+                        regRevQuery = 'insert into review(review_id, review_content, image_exist_chk, prod_rating, user_id, prod_id, type, height, weight) values(?, ?, ?, ?, ?, ?, ?, ?, ?);';
+                        inserts = [review_id, req.body.review_content, 1, req.body.prod_rating, req.body.user_id, req.body.prod_id, req.body.type, req.body.height, req.body.weight];
                     }
                     conn.query(regRevQuery, inserts,
                         function(err, rows) {
@@ -375,30 +329,41 @@ function registReview(req, res) {
                         });
                 },
                 function(callback) {
-                    console.log(req.file);
-                    conn.query(regRevImgQuery, [req.file.location, req.body.review_content],
-                        function(err, rows) {
-                            if (error) {
-                                console.log('regist review image err', err);
-                                var error = {
-                                    err: {
-                                        code: 1,
-                                        msg: 'regist review image err'
-                                    },
-                                    data: []
+                    if (req.file == undefined) {
+                        var error = {
+                            err: {
+                                code: 1,
+                                msg: 'upload image err'
+                            },
+                            data: []
+                        };
+                        callback(error);
+                    } else {
+                        console.log(req.file);
+                        conn.query(regRevImgQuery, [req.file.location, req.body.review_content],
+                            function(err, rows) {
+                                if (err) {
+                                    console.log('regist review image err', err);
+                                    var error = {
+                                        err: {
+                                            code: 1,
+                                            msg: 'regist review image err'
+                                        },
+                                        data: []
+                                    }
+                                    callback(error);
+                                } else {
+                                    console.log(rows);
+                                    callback(null, rows);
                                 }
-                                callback(error);
-                            } else {
-                                console.log(rows);
-                                callback(null, rows);
-                            }
-                        });
+                            });
+                    }
                 }
             ],
             function(err, result) {
                 if (err) {
                     console.log(err);
-                    res.send(err)
+                    res.send(err);
                     conn.rollback();
                     conn.release();
                 } else {
@@ -539,7 +504,7 @@ function myReviewList(req, res) {
     var userQuery = 'select nickname, prof_image_url, age, height, weight from user where user_id=?';
 
     pool.getConnection(function(err, conn) {
-        if(err) {
+        if (err) {
             console.log('db connection err', err);
             res.send({
                 err: {
@@ -552,29 +517,29 @@ function myReviewList(req, res) {
         } else {
             async.waterfall([
                 function(callback) {
-                conn.query(userQuery, [req.body.user_id],
-                function(err, rows) {
-                    if(err) {
-                        console.log('user query err', err);
-                        var err = {
-                            err: {
-                                code: 1,
-                                msg: 'user query err'
-                            },
-                            data: [];
-                        }
-                        callback(err);
-                    } else {
-                        callback(null, true);
-                    }
-                });
-              },
-              function(arg, callback) {
+                    conn.query(userQuery, [req.body.user_id],
+                        function(err, rows) {
+                            if (err) {
+                                console.log('user query err', err);
+                                var err = {
+                                    err: {
+                                        code: 1,
+                                        msg: 'user query err'
+                                    },
+                                    data: []
+                                }
+                                callback(err);
+                            } else {
+                                callback(null, true);
+                            }
+                        });
+                },
+                function(arg, callback) {
 
-              },
-              function(arg, callback) {
+                },
+                function(arg, callback) {
 
-              }
+                }
             ], function(err, result) {
 
             });
