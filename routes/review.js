@@ -1,6 +1,26 @@
 const express = require('express');
 const async = require('async');
 const pool = require('../dbConnection');
+const aws = require('aws-sdk');
+const multer = require('multer');
+const multerS3 = require('multer-s3');
+
+aws.config.loadFromPath('./config/aws_config.json');
+var s3 = new aws.S3();
+var upload = multer({
+    storage: multerS3({
+        s3: s3,
+        bucket: 'ibubogosu',
+        acl: 'public-read',
+        key: function(req, file, cb) {
+            console.log("file is ", file);
+            cb(null, Date.now() + '.' + file.originalname.split('.').pop());
+        }
+    }),
+    limits: {
+        fileSize: Infinity
+    }
+});
 
 const router = express.Router();
 
@@ -14,8 +34,8 @@ router.route('/:review_id/update')
     .put(adjustReview)
     .delete(removeReview);
 
-router.route('/:prod_id/regist')
-    .post(registReview)
+router.route('/regist')
+    .post(upload.single('review_image'), registReview);
 
 router.route('/:keyword')
     .get(autoComplete)
@@ -39,7 +59,7 @@ function imageReviewList(req, res) {
                     code: 1,
                     msg: 'db connection err'
                 },
-                data: {}
+                data: []
             });
         } else {
             async.series([
@@ -54,7 +74,7 @@ function imageReviewList(req, res) {
                                             code: 1,
                                             msg: 'image review query err'
                                         },
-                                        data: {}
+                                        data: []
                                     });
                                 } else {
                                     if (rows.length <= 0) {
@@ -64,7 +84,7 @@ function imageReviewList(req, res) {
                                                 code: 1,
                                                 msg: 'image review query result is 0'
                                             },
-                                            data: {}
+                                            data: []
                                         });
                                         conn.release();
                                     } else {
@@ -84,7 +104,7 @@ function imageReviewList(req, res) {
                                                 code: 1,
                                                 msg: 'rating query err'
                                             },
-                                            data: {}
+                                            data: []
                                         });
                                         conn.release();
                                     } else {
@@ -108,7 +128,7 @@ function imageReviewList(req, res) {
                                             code: 1,
                                             msg: 'common review query err'
                                         },
-                                        data: {}
+                                        data: []
                                     });
                                 } else {
                                     if (rows.length <= 0) {
@@ -118,7 +138,7 @@ function imageReviewList(req, res) {
                                                 code: 1,
                                                 msg: 'common review query result is 0'
                                             },
-                                            data: {}
+                                            data: []
                                         });
                                         conn.release();
                                     } else {
@@ -129,20 +149,31 @@ function imageReviewList(req, res) {
                     }
                 ],
                 function(err, result) {
-                    console.log('result : ', result);
-                    res.send({
-                        err: {
-                            code: 0,
-                            msg: ''
-                        },
-                        data: {
-                            revList: result[0],
-                            rating: result[1],
-                            comRevList: result[2]
-                        }
-                    });
-                    conn.release();
-                });
+                    if (err) {
+                        console.log('load review err ', err);
+                        res.send(err);
+                        conn.rollback();
+                        conn.release();
+                    } else {
+                        console.log('result : ', result);
+                        res.send({
+                            err: {
+                                code: 0,
+                                msg: ''
+                            },
+                            data: [
+                              {
+                                revList: result[0],
+                                rating: result[1],
+                                comRevList: result[2]
+                              }
+                            ]
+                        });
+                        conn.commit();
+                        conn.release();
+                    }
+                }
+            );
         }
     });
 }
@@ -158,7 +189,7 @@ function noImageReviewList(req, res) {
                     code: 1,
                     msg: 'db connection err'
                 },
-                data: {}
+                data: []
             });
             conn.release();
         } else {
@@ -171,7 +202,7 @@ function noImageReviewList(req, res) {
                                 code: 1,
                                 msg: 'common review query err'
                             },
-                            data: {}
+                            data: []
                         });
                         conn.release();
                     } else {
@@ -182,7 +213,7 @@ function noImageReviewList(req, res) {
                                     code: 1,
                                     msg: 'common review query result is 0'
                                 },
-                                data: {}
+                                data: []
                             });
                             conn.release();
                         } else {
@@ -202,15 +233,21 @@ function noImageReviewList(req, res) {
     });
 }
 
-
 function searchReview(req, res) {
 
 }
 
 function registReview(req, res) {
-    var regProdQuery = 'insert into product(prod_id, prod_name, prod_purchase_site_url) values(?, ?, ?);';
-    var regRevQuery = 'insert into review(review_id, review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, ?, 1, ?, ?, ?);';
-    var regRevImgQuery = 'insert into review_image_url(review_image_id, review_image_url, review_id) values(?, ?, ?);';
+    var regProdQuery = 'insert into product(prod_name, prod_purchase_site_url) values(?, ?);';
+    var regRevImgQuery = 'insert into review_image_url(review_image_url, review_id) values(?, (select review_id from review where review_content=?));';
+    if (req.body.prod_id == -1) {
+        regRevQuery = 'insert into review(review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, 1, ?, ?, (select prod_id from product where prod_name=?));';
+        inserts = [req.body.review_content, 1, req.body.prod_rating, req.body.user_id, req.body.prod_name];
+    } else {
+        reqRevQuery = 'insert into review(review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, 1, ?, ?, ?);';
+        inserts = [req.body.review_content, 1, req.body.prod_rating, req.body.user_id, req.body.prod_id];
+    }
+
     pool.getConnection(function(err, conn) {
         if (err) {
             console.log('db connection err', err);
@@ -219,181 +256,133 @@ function registReview(req, res) {
                     code: 1,
                     msg: 'db connection err'
                 },
-                data: {}
+                data: []
             });
             conn.release();
-        } else {
-            if (req.params.prod_id == -1) {
-                async.series([
-                        function(callback) {
-                            conn.beginTransaction(function(err) {
-                                if (err) {
-                                    console.log('transaction err', err);
-                                    res.send({
-                                        err: {
-                                            code: 1,
-                                            msg: 'transaction err'
-                                        },
-                                        data: {}
-                                    });
-                                    conn.release();
-                                } else
-                                    callback(null, 'beginTransaction');
-                            });
-                        },
-                        function(callback) {
-                            conn.query(regProdQuery, [prod_id, req.body.prod_name, req.body.prod_purchase_site_url],
-                                function(err, rows) {
-                                    if (err) {
-                                        console.log('regist product query err', err);
-                                        res.send({
-                                            err: {
-                                                code: 1,
-                                                msg: 'regist product query err'
-                                            },
-                                            data: {}
-                                        });
-                                        conn.rollback();
-                                        conn.release();
-                                    } else {
-                                        callback(null, rows);
-                                    }
-                                });
-                        },
-                        function(callback) {
-                            conn.query(regRevQuery, [review_id, req.body.review_content, req.body.prod_rating, req.body.user_id, prod_id],
-                                function(err, rows) {
-                                    if (err) {
-                                        console.log('regist review query err', err);
-                                        res.send({
-                                            err: {
-                                                code: 1,
-                                                msg: 'regist review query err'
-                                            },
-                                            data: {}
-                                        });
-                                        conn.rollback();
-                                        conn.release();
-                                    } else {
-                                        callback(null, rows);
-                                    }
-                                });
-                        },
-                        function(callback) {
-                            conn.query(regRevImgQuery, [review_image_id, review_image_url, review_id],
-                                function(err, rows) {
-                                    if (err) {
-                                        console.log('regist review image err', err);
-                                        res.send({
-                                            err: {
-                                                code: 1,
-                                                msg: 'regist review image err'
-                                            },
-                                            data: {}
-                                        });
-                                        conn.rollback();
-                                        conn.release();
-                                    } else {
-                                        callback(null, rows);
-                                    }
-                                });
-                        }
-                    ],
-                    function(err, result) {
-                        if (err) {
-                            console.log(err);
-                            conn.rollback();
-                            conn.release();
-                        } else {
-                            console.log('result : ', result);
-                            res.send({
-                                err: {
-                                    code: 0,
-                                    msg: '',
-                                },
-                                data: result
-                            });
-                            conn.commit();
-                            conn.release();
-                        }
-                    });
-            } else {
-                async.series([
-                        function(callback) {
-                            conn.beginTransaction(function(err) {
-                                if (err) {
-                                    console.log('transaction err', err);
-                                    res.send({
-                                        err: {
-                                            code: 1,
-                                            msg: 'transaction err'
-                                        },
-                                        data: {}
-                                    });
-                                    conn.release();
-                                } else
-                                    callback(null, 'beginTransaction');
-                            });
-                        },
-                        function(callback) {
-                            conn.query(regRevQuery, [review_id, req.body.review_content, req.body.prod_rating, req.body.user_id, req.body.prod_id],
-                                function(err, rows) {
-                                    if (err) {
-                                        console.log('regist review query err', err);
-                                        res.send({
-                                            err: {
-                                                code: 1,
-                                                msg: 'regist review query err'
-                                            },
-                                            data: {}
-                                        });
-                                        conn.rollback();
-                                        conn.release();
-                                    } else {
-                                        callback(null, rows);
-                                    }
-                                });
-                        },
-                        function(callback) {
-                            conn.query(regRevImgQuery, [review_image_id, review_image_url, review_id],
-                                function(err, rows) {
-                                    if (err) {
-                                        console.log('regist review image err', err);
-                                        res.send({
-                                            err: {
-                                                code: 1,
-                                                msg: 'regist review image err'
-                                            },
-                                            data: {}
-                                        });
-                                        conn.rollback();
-                                        conn.release();
-                                    } else {
-                                        callback(null, rows);
-                                    }
-                                });
-                        }
-                    ],
-                    function(err, result) {
-                        if (err) {
-                            console.log(err);
-                            conn.rollback();
-                            conn.release();
-                        } else {
-                            console.log('result : ', result);
-                            res.send({
-                                err: {
-                                    code: 0,
-                                    msg: '',
-                                },
-                                data: result
-                            });
-                            conn.commit();
-                            conn.release();
-                        }
-                    });
-            }
+            return;
         }
+        console.log(req.body);
+        async.series([
+                function(callback) {
+                    conn.beginTransaction(function(err) {
+                        if (err) {
+                            console.log('transaction err', err);
+                            var error = {
+                                err: {
+                                    code: 1,
+                                    msg: 'transaction err'
+                                },
+                                data: []
+                            }
+                            callback(error);
+                        } else
+                            callback(null, 'beginTransaction');
+                    });
+                },
+                // 왜 안될까? post()안에 여러 함수를 넣으면 async로 실행되는지,, upload.single()함수를 콜백 안에서 실행시키면 실행이 되는지 실험해보기
+                // function(callback) {
+                //     const uploadRet = upload.single('review_image');
+                //     console.log('upload Ret :', uploadRet)
+                //     uploadRet(req, res, function(err) {
+                //         console.log(req.file);
+                //         if (err) {
+                //             console.log('image upload err', err);
+                //             var error = {
+                //                 err: {
+                //                     code: 1,
+                //                     msg: 'image upload err'
+                //                 },
+                //                 data: {}
+                //             }
+                //             callback(error);
+                //         } else {
+                //             upload_review_image_url = 'https://s3.ap-northeast-2.amazonaws.com/ibubogosu/';
+                //             console.log(upload_review_image_url);
+                //             callback(null, 'upload success');
+                //         }
+                //     });
+                // },
+                function(callback) {
+                    if (req.body.prod_id == -1) {
+                        conn.query(regProdQuery, inserts,
+                            function(err, rows) {
+                                if (err) {
+                                    console.log('regist product query err', err);
+                                    var error = {
+                                        err: {
+                                            code: 1,
+                                            msg: 'regist product query err'
+                                        },
+                                        data: []
+                                    }
+                                    callback(error);
+                                } else {
+                                    console.log(rows);
+                                    callback(null, rows);
+                                }
+                            });
+                    } else
+                        callback(null, 'pass regist product');
+                },
+                function(callback) {
+                    conn.query(regRevQuery, [req.body.review_content, req.body.prod_rating, req.body.user_id, req.body.prod_name],
+                        function(err, rows) {
+                            if (err) {
+                                console.log('regist review query err', err);
+                                var error = {
+                                    err: {
+                                        code: 1,
+                                        msg: 'regist review query err'
+                                    },
+                                    data: []
+                                }
+                                callback(error);
+                            } else {
+                                console.log(rows);
+                                callback(null, rows);
+                            }
+                        });
+                },
+                function(callback) {
+                    console.log(req.file);
+                    conn.query(regRevImgQuery, [req.file.location, req.body.review_content],
+                        function(err, rows) {
+                            if (error) {
+                                console.log('regist review image err', err);
+                                var error = {
+                                    err: {
+                                        code: 1,
+                                        msg: 'regist review image err'
+                                    },
+                                    data: []
+                                }
+                                callback(error);
+                            } else {
+                                console.log(rows);
+                                callback(null, rows);
+                            }
+                        });
+                }
+            ],
+            function(err, result) {
+                if (err) {
+                    console.log(err);
+                    res.send(err)
+                    conn.rollback();
+                    conn.release();
+                } else {
+                    console.log('result : ', result);
+                    res.send({
+                        err: {
+                            code: 0,
+                            msg: '',
+                        },
+                        data: [result]
+                    });
+                    conn.commit();
+                    conn.release();
+                }
+            });
     });
 }
 
@@ -415,7 +404,7 @@ function autoComplete(req, res) {
                     code: 1,
                     msg: 'db connection err'
                 },
-                data: {}
+                data: []
             });
             conn.release();
         } else {
@@ -428,7 +417,7 @@ function autoComplete(req, res) {
                                 code: 1,
                                 msg: 'auto query err'
                             },
-                            data: {}
+                            data: []
                         });
                         conn.release();
                     } else {
@@ -444,7 +433,7 @@ function autoComplete(req, res) {
                             conn.release();
                         } else {
                             var prodList = [];
-                            for(i in rows)
+                            for (i in rows)
                                 prodList[i] = rows[i].prod_name;
                             console.log('result : ', rows);
                             res.send({
@@ -452,7 +441,7 @@ function autoComplete(req, res) {
                                     code: 0,
                                     msg: ''
                                 },
-                                data: prodList
+                                data: [prodList]
                             });
                             conn.release();
                         }
@@ -472,7 +461,7 @@ function searchReview(req, res) {
                     code: 1,
                     msg: 'db connection err'
                 },
-                data: {}
+                data: []
             });
             conn.release();
         } else {
@@ -504,7 +493,7 @@ function searchReview(req, res) {
                                     code: 0,
                                     msg: ''
                                 },
-                                data: rows
+                                data: [rows]
                             });
                             conn.release();
                         }
@@ -513,8 +502,3 @@ function searchReview(req, res) {
         }
     });
 }
-
-/*
- *  1. formidable - registReview
- *  3. s3 - registReview - store image and take imge url
- */
