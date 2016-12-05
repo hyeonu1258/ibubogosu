@@ -101,7 +101,6 @@ function prodList(req, res) {
                             res.send(productList);
                             conn.release();
                         }
-
                     });
         }
     });
