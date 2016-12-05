@@ -181,7 +181,7 @@ function searchReview(req, res) {
 
 function registReview(req, res) {
     var regProdQuery = 'insert into product(prod_id, prod_name, prod_purchase_site_url) values(?, ?, ?);';
-    var regRevImgQuery = 'insert into review_image_url(review_image_url, review_id) values(?, (select review_id from review where review_content=?));';
+    var regRevImgQuery = 'insert into review_image_url(review_image_url, review_id) values(?, ?);';
     var review_id, prod_id;
 
     pool.getConnection(function(err, conn) {
@@ -340,7 +340,7 @@ function registReview(req, res) {
                         callback(error);
                     } else {
                         console.log(req.file);
-                        conn.query(regRevImgQuery, [req.file.location, req.body.review_content],
+                        conn.query(regRevImgQuery, [req.file.location, review_id],
                             function(err, rows) {
                                 if (err) {
                                     console.log('regist review image err', err);
