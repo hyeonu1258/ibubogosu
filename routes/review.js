@@ -24,6 +24,9 @@ var upload = multer({
 
 const router = express.Router();
 
+router.route('/myReview').
+      .post(myReviewList);
+
 router.route('/:review_id/:type/image')
     .get(imageReviewList);
 
@@ -405,7 +408,7 @@ function registReview(req, res) {
                             code: 0,
                             msg: '',
                         },
-                        data: [result]
+                        data: result
                     });
                     conn.commit();
                     conn.release();
@@ -469,7 +472,7 @@ function autoComplete(req, res) {
                                     code: 0,
                                     msg: ''
                                 },
-                                data: [prodList]
+                                data: prodList
                             });
                             conn.release();
                         }
@@ -521,12 +524,60 @@ function searchReview(req, res) {
                                     code: 0,
                                     msg: ''
                                 },
-                                data: [rows]
+                                data: rows
                             });
                             conn.release();
                         }
                     }
                 });
+        }
+    });
+}
+
+function myReviewList(req, res) {
+    var userInfo;
+    var userQuery = 'select nickname, prof_image_url, age, height, weight from user where user_id=?';
+
+    pool.getConnection(function(err, conn) {
+        if(err) {
+            console.log('db connection err', err);
+            res.send({
+                err: {
+                    code: 1,
+                    msg: 'db connection err'
+                },
+                data: []
+            });
+            conn.release();
+        } else {
+            async.waterfall([
+                function(callback) {
+                conn.query(userQuery, [req.body.user_id],
+                function(err, rows) {
+                    if(err) {
+                        console.log('user query err', err);
+                        var err = {
+                            err: {
+                                code: 1,
+                                msg: 'user query err'
+                            },
+                            data: [];
+                        }
+                        callback(err);
+                    } else {
+                        callback(null, true);
+                    }
+                });
+              },
+              function(arg, callback) {
+
+              },
+              function(arg, callback) {
+
+              }
+            ], function(err, result) {
+
+            });
         }
     });
 }
