@@ -46,9 +46,9 @@ module.exports = router;
 function reviewList(req, res) {
     var imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
     var countQuery = 'select count(*) as cnt from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.prod_rating=? join user u on r.user_id=u.user_id and u.type=?';
-    var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
-    if (req.params.division == 3)
-        comReviewQuery = comReviewQuery + ' limit 5'
+    var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
+    if (req.params.division == 2)
+        comReviewQuery = comReviewQuery + ' limit 3'
     var revList, response;
     var rating = new Array();
     var index = [0, 1, 2, 3, 4, 5];
@@ -239,24 +239,27 @@ function registReview(req, res) {
                 //     });
                 // },
                 function(callback) {
-                    conn.query('select max(prod_id) as id from product', [],
-                        function(err, rows) {
-                            if (err) {
-                                console.log('select product id query err', err);
-                                var error = {
-                                    err: {
-                                        code: 1,
-                                        msg: 'select product id query err'
-                                    },
-                                    data: []
+                    if (req.body.prod_id == -1) {
+                        conn.query('select max(prod_id) as id from product', [],
+                            function(err, rows) {
+                                if (err) {
+                                    console.log('select product id query err', err);
+                                    var error = {
+                                        err: {
+                                            code: 1,
+                                            msg: 'select product id query err'
+                                        },
+                                        data: []
+                                    }
+                                    callback(error);
+                                } else {
+                                    prod_id = Number(rows[0].id.split('_')[1]) + 1;
+                                    prod_id = 'stylenanda_' + prod_id;
+                                    callback(null, true)
                                 }
-                                callback(error);
-                            } else {
-                                prod_id = Number(rows[0].id.split('_')[1]) + 1;
-                                prod_id = 'stylenanda_' + prod_id;
-                                callback(null, true)
-                            }
-                        });
+                            });
+                    } else
+                        callback(null, true);
                 },
                 function(callback) {
                     if (req.body.prod_id == -1) {
@@ -282,8 +285,7 @@ function registReview(req, res) {
                     }
                 },
                 function(callback) {
-                    conn.query('select max(review_id) as id from review', [],
-                        function(err, rows) {
+                    conn.query('select max(review_id) as id from review', [], function(err, rows) {
                             if (err) {
                                 console.log('select review id query err', err);
                                 var error = {
@@ -515,7 +517,7 @@ function myReviewList(req, res) {
             });
             conn.release();
         } else {
-            async.waterfall([
+            async.series([
                 function(callback) {
                     conn.query(userQuery, [req.body.user_id],
                         function(err, rows) {
@@ -530,18 +532,44 @@ function myReviewList(req, res) {
                                 }
                                 callback(err);
                             } else {
-                                callback(null, true);
+                                callback(null, rows);
                             }
                         });
                 },
-                function(arg, callback) {
-                    console.log('test');
+                function(callback) {
+                    var revQuery = 'select p.prod_name, p.shopping_site_name, url.review_image_url, r.weight, r.height from review r join product p on r.prod_id = p.prod_id join review_image_url url on r.review_id = url.review_id and r.user_id=? group by r.review_id';
+                    conn.query(revQuery, [req.body.user_id], function(err, rows) {
+                        if (err) {
+                            var error = {
+                                err: {
+                                    code: 1,
+                                    msg: 'select review query err'
+                                },
+                                data: []
+                            }
+                            callback(error);
+                        } else {
+                            callback(null, rows);
+                        }
+                    })
                 },
-                function(arg, callback) {
-                    console.log('test');
-                }
             ], function(err, result) {
-
+                if(err) {
+                    res.send(err);
+                    conn.release;
+                } else {
+                    res.send({
+                        err: {
+                            code: 0,
+                            msg: ''
+                        },
+                        data: [{
+                            userInfo: result[0],
+                            reviewList: result[1]
+                        }]
+                    });
+                    conn.release;
+                }
             });
         }
     });
