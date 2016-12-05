@@ -535,10 +535,10 @@ function myReviewList(req, res) {
                         });
                 },
                 function(arg, callback) {
-
+                    console.log('test');
                 },
                 function(arg, callback) {
-
+                    console.log('test');
                 }
             ], function(err, result) {
 
