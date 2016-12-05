@@ -130,21 +130,8 @@ function imageReviewList(req, res) {
                                         },
                                         data: []
                                     });
-                                } else {
-                                    if (rows.length <= 0) {
-                                        console.log('common review query result is 0', err);
-                                        res.send({
-                                            err: {
-                                                code: 1,
-                                                msg: 'common review query result is 0'
-                                            },
-                                            data: []
-                                        });
-                                        conn.release();
-                                    } else {
-                                        callback(null, rows);
-                                    }
-                                }
+                                } else
+                                    callback(null, rows);
                             });
                     }
                 ],
