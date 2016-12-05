@@ -20,7 +20,7 @@ var upload = multer({
     limits: {
         fileSize: Infinity
     }
-}).single('image_review');
+});
 
 const router = express.Router();
 
@@ -35,7 +35,7 @@ router.route('/:review_id/update')
     .delete(removeReview);
 
 router.route('/regist')
-    .post(upload, registReview);
+    .post(upload.single('review_image'), registReview);
 
 router.route('/:keyword')
     .get(autoComplete)
