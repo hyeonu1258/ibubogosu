@@ -542,6 +542,7 @@ function myReviewList(req, res) {
                 }
             ], function(err, result) {
 
+                console.log('test');
             });
         }
     });
