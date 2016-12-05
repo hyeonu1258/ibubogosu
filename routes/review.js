@@ -161,13 +161,11 @@ function imageReviewList(req, res) {
                                 code: 0,
                                 msg: ''
                             },
-                            data: [
-                              {
+                            data: [{
                                 revList: result[0],
                                 rating: result[1],
                                 comRevList: result[2]
-                              }
-                            ]
+                            }]
                         });
                         conn.commit();
                         conn.release();
@@ -238,15 +236,9 @@ function searchReview(req, res) {
 }
 
 function registReview(req, res) {
-    var regProdQuery = 'insert into product(prod_name, prod_purchase_site_url) values(?, ?);';
+    var regProdQuery = 'insert into product(prod_id, prod_name, prod_purchase_site_url) values(?, ?, ?);';
     var regRevImgQuery = 'insert into review_image_url(review_image_url, review_id) values(?, (select review_id from review where review_content=?));';
-    if (req.body.prod_id == -1) {
-        regRevQuery = 'insert into review(review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, 1, ?, ?, (select prod_id from product where prod_name=?));';
-        inserts = [req.body.review_content, 1, req.body.prod_rating, req.body.user_id, req.body.prod_name];
-    } else {
-        reqRevQuery = 'insert into review(review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, 1, ?, ?, ?);';
-        inserts = [req.body.review_content, 1, req.body.prod_rating, req.body.user_id, req.body.prod_id];
-    }
+    var review_id, prod_id;
 
     pool.getConnection(function(err, conn) {
         if (err) {
@@ -303,8 +295,28 @@ function registReview(req, res) {
                 //     });
                 // },
                 function(callback) {
+                    conn.query('select max(prod_id) as id from product', [],
+                        function(err, rows) {
+                            if (err) {
+                                console.log('select product id query err', err);
+                                var error = {
+                                    err: {
+                                        code: 1,
+                                        msg: 'select product id query err'
+                                    },
+                                    data: []
+                                }
+                                callback(err);
+                            } else {
+                                prod_id = Number(rows[0].id.split('_')[1]) + 1;
+                                prod_id = 'stylenanda_' + prod_id;
+                                callback(null, true)
+                            }
+                        });
+                },
+                function(callback) {
                     if (req.body.prod_id == -1) {
-                        conn.query(regProdQuery, inserts,
+                        conn.query(regProdQuery, [prod_id, req.prod_name, req.prod_purchase_site_url],
                             function(err, rows) {
                                 if (err) {
                                     console.log('regist product query err', err);
@@ -321,11 +333,40 @@ function registReview(req, res) {
                                     callback(null, rows);
                                 }
                             });
-                    } else
+                    } else {
                         callback(null, 'pass regist product');
+                    }
                 },
                 function(callback) {
-                    conn.query(regRevQuery, [req.body.review_content, req.body.prod_rating, req.body.user_id, req.body.prod_name],
+                    conn.query('select max(review_id) as id from review', [],
+                        function(err, rows) {
+                            if (err) {
+                                console.log('select review id query err', err);
+                                var error = {
+                                    err: {
+                                        code: 1,
+                                        msg: 'select review id query err'
+                                    },
+                                    data: []
+                                }
+                                callback(err);
+                            } else {
+                                review_id = Number(rows[0].id.split('_')[1]) + 1;
+                                review_id = 'stylenanda_' + review_id
+                                console.log(review_id);
+                                callback(null, true)
+                            }
+                        });
+                },
+                function(callback) {
+                    if (req.body.prod_id == -1) {
+                        regRevQuery = 'insert into review(review_id, review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, ?, ?, ?, ?, ?);';
+                        inserts = [review_id, req.body.review_content, 1, req.body.prod_rating, req.body.user_id, prod_id];
+                    } else {
+                        regRevQuery = 'insert into review(review_id, review_content, image_exist_chk, prod_rating, user_id, prod_id) values(?, ?, ?, ?, ?, ?);';
+                        inserts = [review_id, req.body.review_content, 1, req.body.prod_rating, req.body.user_id, req.body.prod_id];
+                    }
+                    conn.query(regRevQuery, inserts,
                         function(err, rows) {
                             if (err) {
                                 console.log('regist review query err', err);
