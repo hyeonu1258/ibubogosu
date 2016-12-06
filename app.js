@@ -9,6 +9,7 @@ var index = require('./routes/index');
 var users = require('./routes/users');
 var review = require('./routes/review');
 var prodNRev = require('./routes/prodnrev');
+var follow = require('./routes/follow');
 
 var app = express();
 
@@ -24,9 +25,7 @@ app.use(bodyParser.urlencoded({
     limit: '4mb',
     parameterLimit: 1000000
 }));
-// app.use(bodyParser.urlencoded({
-//     extended: false
-// }));
+
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -34,6 +33,7 @@ app.use('/', index);
 app.use('/users', users);
 app.use('/review', review);
 app.use('/prodnrev', prodNRev);
+app.use('/follow', follow);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
