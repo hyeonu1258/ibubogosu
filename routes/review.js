@@ -63,6 +63,7 @@ function reviewList(req, res) {
                 },
                 data: []
             });
+            conn.release;
         } else {
             async.series([
                     function(callback) {
@@ -556,7 +557,7 @@ function myReviewList(req, res) {
             ], function(err, result) {
                 if(err) {
                     res.send(err);
-                    conn.release;
+                    conn.release();
                 } else {
                     res.send({
                         err: {
@@ -568,7 +569,7 @@ function myReviewList(req, res) {
                             reviewList: result[1]
                         }]
                     });
-                    conn.release;
+                    conn.release();
                 }
             });
         }
