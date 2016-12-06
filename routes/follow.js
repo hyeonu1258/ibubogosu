@@ -216,6 +216,15 @@ function showFollowerList(req, res) {
                     });
                     conn.release();
                 } else {
+                    if(rows.length < 1) {
+                      res.send({
+                          err: {
+                              code: 1,
+                              msg: 'no data'
+                          },
+                          data: []
+                      });
+                    } else {
                     console.log(rows);
                     res.send({
                         err: {
@@ -225,6 +234,7 @@ function showFollowerList(req, res) {
                         data: rows
                     });
                     conn.release();
+                  }
                 }
             });
         }
