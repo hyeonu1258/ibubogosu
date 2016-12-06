@@ -7,9 +7,9 @@ var router = express.Router();
 router.route('/following')
     .post(showFollowingList)
 
-router.route('/following/update')
+router.route('/update')
     .post(registFollowing)
-    .delete(deleteFollowing);
+    .put(deleteFollowing);
 
 router.route('/follower')
     .post(showFollowerList);

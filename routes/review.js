@@ -27,12 +27,12 @@ const router = express.Router();
 router.route('/myReview')
     .post(myReviewList);
 
-router.route('/:review_id/:type/:division')
-    .get(reviewList);
+router.route('/detail/:division')
+    .post(reviewList);
 
-router.route('/:review_id/update')
+router.route('/update')
     .put(adjustReview)
-    .delete(removeReview);
+    .post(removeReview);
 
 router.route('/regist')
     .post(upload.single('review_image'), registReview);
@@ -45,7 +45,7 @@ module.exports = router;
 
 function reviewList(req, res) {
     var imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
-    var countQuery = 'select count(*) as cnt from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.prod_rating=? join user u on r.user_id=u.user_id and u.type=?';
+    var countQuery = 'select count(*) as cnt from review where prod_id=(select prod_id from review where review_id=?) and prod_rating=? and type=?';
     var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
     if (req.params.division == 2)
         comReviewQuery = comReviewQuery + ' limit 3'
@@ -68,7 +68,7 @@ function reviewList(req, res) {
             async.series([
                     function(callback) {
                         if (req.params.division == 1) {
-                            conn.query(imageReviewQuery, [req.params.review_id, req.params.type],
+                            conn.query(imageReviewQuery, [req.body.review_id, req.body.type],
                                 function(err, rows) {
                                     if (err) {
                                         console.log("image reivew query err", err);
@@ -103,7 +103,7 @@ function reviewList(req, res) {
                     function(callback) {
                         if (req.params.division == 2) {
                             var a = function(i) {
-                                conn.query(countQuery, [req.params.review_id, i, req.params.type],
+                                conn.query(countQuery, [req.body.review_id, i, req.body.type],
                                     function(err, rows) {
                                         if (err) {
                                             console.log('rating query err', err);
@@ -129,7 +129,7 @@ function reviewList(req, res) {
                     },
                     function(callback) {
                         if (req.params.division == 2 || req.params.division == 3) {
-                            conn.query(comReviewQuery, [req.params.review_id, req.params.type],
+                            conn.query(comReviewQuery, [req.body.review_id, req.body.type],
                                 function(err, rows) {
                                     if (err) {
                                         console.log('common review query err', err);
@@ -174,10 +174,6 @@ function reviewList(req, res) {
             );
         }
     });
-}
-
-function searchReview(req, res) {
-
 }
 
 function registReview(req, res) {
@@ -264,7 +260,7 @@ function registReview(req, res) {
                 },
                 function(callback) {
                     if (req.body.prod_id == -1) {
-                        conn.query(regProdQuery, [prod_id, req.prod_name, req.prod_purchase_site_url],
+                        conn.query(regProdQuery, [prod_id, req.body.prod_name, req.body.prod_purchase_site_url],
                             function(err, rows) {
                                 if (err) {
                                     console.log('regist product query err', err);
@@ -287,23 +283,23 @@ function registReview(req, res) {
                 },
                 function(callback) {
                     conn.query('select max(review_id) as id from review', [], function(err, rows) {
-                            if (err) {
-                                console.log('select review id query err', err);
-                                var error = {
-                                    err: {
-                                        code: 1,
-                                        msg: 'select review id query err'
-                                    },
-                                    data: []
-                                }
-                                callback(error);
-                            } else {
-                                review_id = Number(rows[0].id.split('_')[1]) + 1;
-                                review_id = 'stylenanda_' + review_id
-                                console.log(review_id);
-                                callback(null, true)
+                        if (err) {
+                            console.log('select review id query err', err);
+                            var error = {
+                                err: {
+                                    code: 1,
+                                    msg: 'select review id query err'
+                                },
+                                data: []
                             }
-                        });
+                            callback(error);
+                        } else {
+                            review_id = Number(rows[0].id.split('_')[1]) + 1;
+                            review_id = 'stylenanda_' + review_id
+                            console.log(review_id);
+                            callback(null, true)
+                        }
+                    });
                 },
                 function(callback) {
                     if (req.body.prod_id == -1) {
@@ -386,11 +382,120 @@ function registReview(req, res) {
 }
 
 function adjustReview(req, res) {
-
+    pool.getConnection(function(err, conn) {
+        if (err) {
+            console.log(err);
+            res.send({
+                err: {
+                    code: 1,
+                    msg: 'db connection err'
+                },
+                data: []
+            });
+            conn.release();
+        } else {
+            // 자기가 작성한 리뷰만 수정하도록 바꾸기
+            conn.query('update review set review_content=? where review_id=?', [req.body.review_content, req.body.review_id],
+                function(err, rows) {
+                    if (err) {
+                        console.log(err);
+                        res.send({
+                            err: {
+                                code: 1,
+                                msg: 'query err'
+                            },
+                            data: []
+                        });
+                        conn.release();
+                    } else {
+                        res.send({
+                            err: {
+                                code: 0,
+                                msg: ''
+                            },
+                            data: []
+                        });
+                        conn.release();
+                    }
+                });
+        }
+    });
 }
 
 function removeReview(req, res) {
-
+    pool.getConnection(function(err, conn) {
+        if (err) {
+            console.log(err);
+            res.send({
+                err: {
+                    code: 1,
+                    msg: 'db connection err'
+                },
+                data: []
+            });
+            conn.release();
+        } else {
+            async.series([
+                function(callback) {
+                    conn.query('delete from review_image_url where review_id = ?', [req.body.review_id],
+                        function(err, rows) {
+                            if (err) {
+                                console.log(err);
+                                callbacK({
+                                    err: {
+                                        code: 1,
+                                        msg: 'query err'
+                                    },
+                                    data: []
+                                });
+                            } else {
+                                callback(null, true);
+                            }
+                        });
+                },
+                function(callback) {
+                    // 자기가 작성한 리뷰만 지우도록 바꾸기
+                    conn.query('delete from review where review_id = ?', [req.body.review_id],
+                        function(err, rows) {
+                            if (err) {
+                                console.log(err);
+                                res.send({
+                                    err: {
+                                        code: 1,
+                                        msg: 'qeury err'
+                                    },
+                                    data: []
+                                });
+                                conn.release();
+                            } else {
+                                res.send({
+                                    err: {
+                                        code: 0,
+                                        msg: ''
+                                    },
+                                    data: []
+                                });
+                                conn.release();
+                            }
+                        });
+                }
+            ], function(err, result) {
+                if (err) {
+                    res.send(err);
+                    conn.release();
+                } else {
+                    res.send({
+                        err: {
+                            err: 0,
+                            msg: ''
+                        },
+                        data: []
+                    });
+                    conn.release();
+                }
+            });
+        }
+    });
 }
 
 function autoComplete(req, res) {
@@ -538,7 +643,7 @@ function myReviewList(req, res) {
                         });
                 },
                 function(callback) {
-                    var revQuery = 'select p.prod_name, p.shopping_site_name, url.review_image_url, r.weight, r.height from review r join product p on r.prod_id = p.prod_id join review_image_url url on r.review_id = url.review_id and r.user_id=? group by r.review_id';
+                    var revQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, r.review_id, url.review_image_url, r.weight, r.height from review r join product p on r.prod_id = p.prod_id join review_image_url url on r.review_id = url.review_id and r.user_id=? group by r.review_id';
                     conn.query(revQuery, [req.body.user_id], function(err, rows) {
                         if (err) {
                             callback({
@@ -549,7 +654,7 @@ function myReviewList(req, res) {
                                 data: []
                             });
                         } else {
-                            if(rows.length < 1)
+                            if (rows.length < 1)
                                 callback({
                                     err: {
                                         code: 1,
@@ -558,12 +663,12 @@ function myReviewList(req, res) {
                                     data: []
                                 });
                             else
-                              callback(null, rows);
+                                callback(null, rows);
                         }
                     })
                 }
             ], function(err, result) {
-                if(err) {
+                if (err) {
                     res.send(err);
                     conn.release();
                 } else {
