@@ -504,7 +504,7 @@ function searchReview(req, res) {
 
 function myReviewList(req, res) {
     var userInfo;
-    var userQuery = 'select nickname, prof_image_url, age, height, weight from user where user_id=?';
+    var userQuery = 'select user_id, prof_image_url, age, height, weight from user where user_id=?';
 
     pool.getConnection(function(err, conn) {
         if (err) {
@@ -541,19 +541,27 @@ function myReviewList(req, res) {
                     var revQuery = 'select p.prod_name, p.shopping_site_name, url.review_image_url, r.weight, r.height from review r join product p on r.prod_id = p.prod_id join review_image_url url on r.review_id = url.review_id and r.user_id=? group by r.review_id';
                     conn.query(revQuery, [req.body.user_id], function(err, rows) {
                         if (err) {
-                            var error = {
+                            callback({
                                 err: {
                                     code: 1,
                                     msg: 'select review query err'
                                 },
                                 data: []
-                            }
-                            callback(error);
+                            });
                         } else {
-                            callback(null, rows);
+                            if(rows.length < 1)
+                                callback({
+                                    err: {
+                                        code: 1,
+                                        msg: 'no data'
+                                    },
+                                    data: []
+                                });
+                            else
+                              callback(null, rows);
                         }
                     })
-                },
+                }
             ], function(err, result) {
                 if(err) {
                     res.send(err);
