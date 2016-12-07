@@ -45,7 +45,13 @@ router.route('/:keyword')
       .post(searchReview)
 
 function reviewList(req, res) {
-    var imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
+    if(req.body.prod_id == -1) {
+        imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
+        inserts = [req.body.review_id, req.body.type]
+    } else  {
+        imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=? and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
+        inserts = [req.body.prod_id, req.body.type]
+    }
     var countQuery = 'select count(*) as cnt from review where prod_id=(select prod_id from review where review_id=?) and prod_rating=? and type=?';
     var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
     if (req.params.division == 2)
@@ -69,7 +75,7 @@ function reviewList(req, res) {
             async.series([
                     function(callback) {
                         if (req.params.division == 1) {
-                            conn.query(imageReviewQuery, [req.body.review_id, req.body.type],
+                            conn.query(imageReviewQuery, inserts,
                                 function(err, rows) {
                                     if (err) {
                                         console.log("image reivew query err", err);
@@ -691,8 +697,9 @@ function myReviewList(req, res) {
 }
 
 function ratingReview(req, res) {
-    ratingReviewQuery = 'select r.review_id, url.review_image_url, r.prod_rating from product p join review r on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and r.review_id=?';
-    inserts = [req.body.review_id];
+    // TODO type도 넘기기
+    ratingReviewQuery = 'select r.review_id, url.review_image_url, r.prod_rating from review r join product p on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and r.prod_id=?';
+    inserts = [req.body.prod_id];
     if(req.body.prod_rating != -1) {
         ratingReviewQuery += ' and r.prod_rating=?';
         inserts.push(req.body.prod_rating);
