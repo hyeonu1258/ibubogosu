@@ -25,35 +25,37 @@ var upload = multer({
 const router = express.Router();
 
 router.route('/myReview')
-      .post(myReviewList);
+    .post(myReviewList);
 
 router.route('/detail/:division')
-      .post(reviewList);
+    .post(reviewList);
 
 router.route('/ratingReview')
-      .post(ratingReview);
+    .post(ratingReview);
 
 router.route('/update')
-      .put(adjustReview)
-      .post(removeReview);
+    .put(adjustReview)
+    .post(removeReview);
 
 router.route('/regist')
-      .post(upload.single('review_image'), registReview);
+    .post(upload.single('review_image'), registReview);
 
 router.route('/:keyword')
-      .get(autoComplete)
-      .post(searchReview)
+    .get(autoComplete)
+    .post(searchReview)
 
 function reviewList(req, res) {
-    if(req.body.prod_id == -1) {
+    if (req.body.prod_id == -1) {
         imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
-        inserts = [req.body.review_id, req.body.type]
-    } else  {
+        countQuery = 'select count(*) as cnt from review where prod_id=(select prod_id from review where review_id=?) and type=? and prod_rating=? ';
+        comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
+        inserts = [req.body.review_id, req.body.type];
+    } else {
         imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=? and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
-        inserts = [req.body.prod_id, req.body.type]
+        countQuery = 'select count(*) as cnt from review where prod_id=? and type=? and prod_rating=?';
+        comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=? and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
+        inserts = [req.body.prod_id, req.body.type];
     }
-    var countQuery = 'select count(*) as cnt from review where prod_id=(select prod_id from review where review_id=?) and prod_rating=? and type=?';
-    var comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
     if (req.params.division == 2)
         comReviewQuery = comReviewQuery + ' limit 3'
     var revList, response;
@@ -110,18 +112,19 @@ function reviewList(req, res) {
                     function(callback) {
                         if (req.params.division == 2) {
                             var a = function(i) {
-                                conn.query(countQuery, [req.body.review_id, i, req.body.type],
+                                if(req.body.prod_id == -1) id = req.body.review_id;
+                                else id = req.body.prod_id;
+                                conn.query(countQuery, [id, req.body.type, i],
                                     function(err, rows) {
                                         if (err) {
                                             console.log('rating query err', err);
-                                            res.send({
+                                            var err = {
                                                 err: {
                                                     code: 1,
                                                     msg: 'rating query err'
                                                 },
                                                 data: []
-                                            });
-                                            conn.release();
+                                            }
                                         } else {
                                             rating[i] = rows[0].cnt;
                                             if (i == 5) {
@@ -136,7 +139,7 @@ function reviewList(req, res) {
                     },
                     function(callback) {
                         if (req.params.division == 2 || req.params.division == 3) {
-                            conn.query(comReviewQuery, [req.body.review_id, req.body.type],
+                            conn.query(comReviewQuery, inserts,
                                 function(err, rows) {
                                     if (err) {
                                         console.log('common review query err', err);
@@ -700,12 +703,12 @@ function ratingReview(req, res) {
     // TODO type도 넘기기
     ratingReviewQuery = 'select r.review_id, url.review_image_url, r.prod_rating from review r join product p on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and r.prod_id=?';
     inserts = [req.body.prod_id];
-    if(req.body.prod_rating != -1) {
+    if (req.body.prod_rating != -1) {
         ratingReviewQuery += ' and r.prod_rating=?';
         inserts.push(req.body.prod_rating);
     }
     pool.getConnection(function(err, conn) {
-        if(err) {
+        if (err) {
             console.log(err);
             res.send({
                 err: {
@@ -717,38 +720,38 @@ function ratingReview(req, res) {
             conn.release();
         } else {
             conn.query(ratingReviewQuery, inserts,
-            function(err, rows) {
-                if(err) {
-                    console.log(err);
-                    res.send({
-                        err: {
-                        code: 1,
-                        msg: ''
-                      },
-                      data: []
-                    });
-                    conn.release();
-                } else {
-                    if(rows.length < 1) {
+                function(err, rows) {
+                    if (err) {
+                        console.log(err);
                         res.send({
                             err: {
                                 code: 1,
-                                msg: 'no data'
+                                msg: ''
                             },
                             data: []
                         });
+                        conn.release();
                     } else {
-                    res.send({
-                        err: {
-                            code: 0,
-                            msg: ''
-                        },
-                        data: rows
-                    });
-                  }
-                  conn.release();
-                }
-            });
+                        if (rows.length < 1) {
+                            res.send({
+                                err: {
+                                    code: 1,
+                                    msg: 'no data'
+                                },
+                                data: []
+                            });
+                        } else {
+                            res.send({
+                                err: {
+                                    code: 0,
+                                    msg: ''
+                                },
+                                data: rows
+                            });
+                        }
+                        conn.release();
+                    }
+                });
         }
     });
 }
