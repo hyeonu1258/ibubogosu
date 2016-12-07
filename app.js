@@ -10,6 +10,7 @@ var users = require('./routes/users');
 var review = require('./routes/review');
 var prodNRev = require('./routes/prodnrev');
 var follow = require('./routes/follow');
+var like = require('./routes/like');
 
 var app = express();
 
@@ -34,6 +35,7 @@ app.use('/users', users);
 app.use('/review', review);
 app.use('/prodnrev', prodNRev);
 app.use('/follow', follow);
+app.use('/like', like);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

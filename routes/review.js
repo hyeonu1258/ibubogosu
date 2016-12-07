@@ -44,8 +44,6 @@ router.route('/:keyword')
       .get(autoComplete)
       .post(searchReview)
 
-module.exports = router;
-
 function reviewList(req, res) {
     var imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
     var countQuery = 'select count(*) as cnt from review where prod_id=(select prod_id from review where review_id=?) and prod_rating=? and type=?';
@@ -747,3 +745,5 @@ function ratingReview(req, res) {
         }
     });
 }
+
+module.exports = router;
