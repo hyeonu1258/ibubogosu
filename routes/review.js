@@ -25,21 +25,24 @@ var upload = multer({
 const router = express.Router();
 
 router.route('/myReview')
-    .post(myReviewList);
+      .post(myReviewList);
 
 router.route('/detail/:division')
-    .post(reviewList);
+      .post(reviewList);
+
+router.route('/ratingReview')
+      .post(ratingReview);
 
 router.route('/update')
-    .put(adjustReview)
-    .post(removeReview);
+      .put(adjustReview)
+      .post(removeReview);
 
 router.route('/regist')
-    .post(upload.single('review_image'), registReview);
+      .post(upload.single('review_image'), registReview);
 
 router.route('/:keyword')
-    .get(autoComplete)
-    .post(searchReview)
+      .get(autoComplete)
+      .post(searchReview)
 
 module.exports = router;
 
@@ -683,6 +686,62 @@ function myReviewList(req, res) {
                         }]
                     });
                     conn.release();
+                }
+            });
+        }
+    });
+}
+
+function ratingReview(req, res) {
+    ratingReviewQuery = 'select r.review_id, url.review_image_url, r.prod_rating from product p join review r on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and r.review_id=?';
+    inserts = [req.body.review_id];
+    if(req.body.prod_rating != -1) {
+        ratingReviewQuery += ' and r.prod_rating=?';
+        inserts.push(req.body.prod_rating);
+    }
+    pool.getConnection(function(err, conn) {
+        if(err) {
+            console.log(err);
+            res.send({
+                err: {
+                    code: 1,
+                    msg: 'db connection err'
+                },
+                data: []
+            });
+            conn.release();
+        } else {
+            conn.query(ratingReviewQuery, inserts,
+            function(err, rows) {
+                if(err) {
+                    console.log(err);
+                    res.send({
+                        err: {
+                        code: 1,
+                        msg: ''
+                      },
+                      data: []
+                    });
+                    conn.release();
+                } else {
+                    if(rows.length < 1) {
+                        res.send({
+                            err: {
+                                code: 1,
+                                msg: 'no data'
+                            },
+                            data: []
+                        });
+                    } else {
+                    res.send({
+                        err: {
+                            code: 0,
+                            msg: ''
+                        },
+                        data: rows
+                    });
+                  }
+                  conn.release();
                 }
             });
         }
