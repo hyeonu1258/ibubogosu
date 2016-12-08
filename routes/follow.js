@@ -1,6 +1,7 @@
 const express = require('express');
 const async = require('async');
 const pool = require('../dbConnection');
+const msg = require('./message');
 
 var router = express.Router();
 
@@ -16,51 +17,64 @@ router.route('/follower')
 
 function showFollowingList(req, res) {
     var followQuery = 'select u.user_id, u.prof_image_url, u.height, u.weight from user u join following_list f on u.user_id = f.following_id and f.user_id=?';
+    var followingList = [];
 
     pool.getConnection(function(err, conn) {
         if (err) {
             console.log('db connection err', err);
-            res.send({
-                err: {
-                    code: 1,
-                    msg: 'db connection err'
-                },
-                data: []
-            });
+            res.send(msg(1, 'db connection err', []));
             conn.release();
         } else {
-            conn.query(followQuery, [req.body.user_id],
-                function(err, rows) {
+            async.waterfall([
+                    function(callback) {
+                        conn.query(followQuery, [req.body.user_id],
+                            function(err, rows) {
+                                if (err)
+                                    callback(msg(1, 'query err : ' + err, []));
+                                else
+                                    if (rows.length < 1)
+                                        callback(msg(1, 'no data', []));
+                                    else
+                                        callback(null, rows);
+                            });
+                    },
+                    function(arg, callback) {
+                        if (req.body.my_id != -1) {
+                            var i = 0;
+                            async.every(arg, function(data, done) {
+                                conn.query('select user_id from following_list where following_id=? and user_id=?', [data.user_id, req.body.my_id],
+                                    function(err, rows) {
+                                        if (err)
+                                            done(msg(1, 'query err: ' + err, []));
+                                        else {
+                                            if (rows.length < 1)
+                                                data.followMe = 0;
+                                            else
+                                                data.followMe = 1;
+                                            followingList[i] = data;
+                                            done(null, true);
+                                            i++;
+                                        }
+                                    });
+                            }, function(err, result) {
+                                if (err)
+                                    callback(err)
+                                else
+                                    callback(null, msg(0, 'success', followingList));
+                            });
+                        } else
+                            callback(null, msg(0, 'success', arg));
+                    }
+                ],
+                function(err, result) {
                     if (err) {
-                        console.log('follow query err ', err);
-                        res.send({
-                            err: {
-                                code: 1,
-                                msg: 'follow query err'
-                            },
-                            data: []
-                        });
+                        console.log(err);
+                        res.send(err)
                         conn.release();
                     } else {
-                        if (rows.length < 1) {
-                            res.send({
-                                err: {
-                                    code: 1,
-                                    msg: 'no data'
-                                },
-                                data: []
-                            });
-                            conn.release();
-                        } else {
-                            res.send({
-                                err: {
-                                    code: 0,
-                                    msg: ''
-                                },
-                                data: rows
-                            });
-                            conn.release();
-                        }
+                        console.log(result);
+                        res.send(result)
+                        conn.release();
                     }
                 });
         }
@@ -191,50 +205,59 @@ function deleteFollowing(req, res) {
 }
 
 function showFollowerList(req, res) {
+    followerList = [];
     pool.getConnection(function(err, conn) {
         if (err) {
             console.log('db connection err ', err);
-            res.send({
-                err: {
-                    code: 1,
-                    msg: 'db connection err'
-                },
-                data: []
-            });
+            res.send(msg(1, 'db connection err', []));
             conn.release();
         } else {
-            conn.query('select u.user_id, u.prof_image_url, u.height, u.weight from user u join following_list f on u.user_id = f.user_id and f.following_id=?', [req.body.user_id],
-            function(err, rows) {
-                if(err) {
-                    console.log('follower query err ', err);
-                    res.send({
-                        err: {
-                            code: 1,
-                            msg: 'query err'
-                        },
-                        data: []
+            async.waterfall([
+                function(callback) {
+                    conn.query('select u.user_id, u.prof_image_url, u.height, u.weight from user u join following_list f on u.user_id = f.user_id and f.following_id=?', [req.body.user_id],
+                        function(err, rows) {
+                            if (err)
+                                callback(msg(1, 'query err', []));
+                            else
+                                if (rows.length < 1)
+                                    callback(msg(1, 'no data', []));
+                                else
+                                    callback(null, rows);
+                        });
+                },
+                function(arg, callback) {
+                    var i = 0;
+                    async.every(arg, function(data, done) {
+                        conn.query('select user_id from following_list where following_id=? and user_id=?', [data.user_id, req.body.user_id],
+                            function(err, rows) {
+                                if (err)
+                                    done(msg(1, 'query err', []));
+                                else {
+                                    if (rows.length < 1)
+                                        data.followMe = 0;
+                                    else
+                                        data.followMe = 1;
+                                    followerList[i] = data;
+                                    done(null, true);
+                                    i++;
+                                }
+                            })
+                    }, function(err, result) {
+                        if (err)
+                            callback(err);
+                        else
+                            callback(null, msg(0, 'success', followerList));
                     });
+                }
+            ], function(err, result) {
+                if (err) {
+                    console.log(err);
+                    res.send(err);
                     conn.release();
                 } else {
-                    if(rows.length < 1) {
-                      res.send({
-                          err: {
-                              code: 1,
-                              msg: 'no data'
-                          },
-                          data: []
-                      });
-                    } else {
-                    console.log(rows);
-                    res.send({
-                        err: {
-                            code: 0,
-                            msg: ''
-                        },
-                        data: rows
-                    });
+                    console.log(result);
+                    res.send(result);
                     conn.release();
-                  }
                 }
             });
         }
