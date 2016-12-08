@@ -6,6 +6,7 @@ const multer = require('multer');
 const multerS3 = require('multer-s3');
 const msg = require('./message');
 
+// merge
 aws.config.loadFromPath('./config/aws_config.json');
 var s3 = new aws.S3();
 var upload = multer({
