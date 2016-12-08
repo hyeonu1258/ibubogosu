@@ -11,6 +11,7 @@ var review = require('./routes/review');
 var prodNRev = require('./routes/prodnrev');
 var follow = require('./routes/follow');
 var like = require('./routes/like');
+var folder = require('./routes/folder');
 
 var app = express();
 
@@ -36,6 +37,7 @@ app.use('/review', review);
 app.use('/prodnrev', prodNRev);
 app.use('/follow', follow);
 app.use('/like', like);
+app.use('/folder', folder);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
