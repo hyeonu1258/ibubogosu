@@ -141,6 +141,7 @@ function showProductList(req, res) {
 }
 
 function registProduct(req, res) {
+    var folderCheck;
     pool.getConnection(function(err, conn) {
         if(err) {
             console.log('db connection err : ' + err);
@@ -148,6 +149,24 @@ function registProduct(req, res) {
             conn.release();
         } else {
             async.series([
+                function(callback) {
+                    conn.query('select folder_id from folder where folder_name=? and user_id=?', [req.params.folder_name, req.body.user_id], function(err, rows) {
+                        if(err)   callback(msg(1, 'query err : ' + err, []));
+                        else {
+                            if(rows.length < 1) folderCheck = false;
+                            else                folderCheck = true;
+                            callback(null, true);
+                        }
+                    });
+                },
+                function(callback) {
+                    if(folderCheck == false) {
+                        conn.query('insert into folder(folder_name, user_id) values(?, ?)', ['기본 폴더', req.body.user_id], function(err, rows) {
+                            if(err)   callback(msg(1, 'query err : ' + err, []));
+                            else      callback(null, 'regist basic folder success');
+                        });
+                    } else callback(null, 'pass regist basic folder');
+                },
                 function(callback) {
                     conn.query('select prod_id from prod_list where folder_id=(select folder_id from folder where folder_name=? and user_id=?) and prod_id=?', [req.params.folder_name, req.body.user_id, req.params.prod_id], function(err, rows) {
                         if(err) callback(msg(1, 'query err : ' + err, []));
@@ -209,10 +228,9 @@ function moveProduct(req, res) {
                 function(callback) {
                     conn.query('select prod_id from prod_list where folder_id=(select folder_id from folder where folder_name=? and user_id=?) and prod_id=?', [req.params.location, req.body.user_id, req.params.prod_id], function(err, rows) {
                         if(err) callback(msg(1, 'query err : ' + err, []));
-                        else {
+                        else
                             if(rows.length < 1) callback(null, 'no exist');
                             else                callback(msg(1, 'already exist', rows));
-                        }
                     });
                 },
                 function(callback) {
