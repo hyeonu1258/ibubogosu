@@ -48,21 +48,24 @@ router.route('/:keyword')
 
 function reviewList(req, res) {
     if (req.body.prod_id == -1) {
-        imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
+        imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, (select count(*) from like_list where review_id=?) as like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name, (select count(*) from prod_list pl join folder f on pl.folder_id = f.folder_id where user_id=? and prod_id=p.prod_id) as putCheck, (select count(*) from like_list where user_id=? and review_id=r.review_id) as likeCheck from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
         countQuery = 'select count(*) as cnt from review where prod_id=(select prod_id from review where review_id=?) and type=? and prod_rating=? ';
         comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
-        inserts = [req.body.review_id, req.body.type];
+        imageInserts = [req.body.review_id, req.body.user_id, req.body.user_id, req.body.review_id, req.body.type];
+        textInserts = [req.body.review_id, req.body.type];
     } else {
-        imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, r.like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=? and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
+        imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, (select count(*) from like_list where review_id=?) as like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name, (select count(*) from prod_list pl join folder f on pl.folder_id = f.folder_id and f.user_id=?, pl.prod_id=p.prod_id) as putCheck, (select count(*) from like_list where user_id=? and review_id=r.review_id) as likeCheck from review r join product p on r.prod_id=p.prod_id and p.prod_id=? and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
         countQuery = 'select count(*) as cnt from review where prod_id=? and type=? and prod_rating=?';
         comReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_name, p.shopping_site_name from review r join product p on r.prod_id=p.prod_id and p.prod_id=? and r.image_exist_chk=0 join user u on r.user_id=u.user_id and u.type=?';
-        inserts = [req.body.prod_id, req.body.type];
+        imageInserts = [req.body.review_id, req.body.user_id, req.body.user_id, req.body.prod_id, req.body.type];
+        textInserts = [req.body.prod_id, req.body.type];
     }
     if (req.params.division == 2)
         comReviewQuery = comReviewQuery + ' limit 3'
     var revList, response;
-    var rating = new Array();
+    var rating = new Array(); rating[6] = 0;
     var index = [0, 1, 2, 3, 4, 5];
+    var total = 0;
 
     pool.getConnection(function(err, conn) {
         if (err) {
@@ -73,7 +76,7 @@ function reviewList(req, res) {
             async.series([
                     function(callback) {
                         if (req.params.division == 1) {
-                            conn.query(imageReviewQuery, inserts,
+                            conn.query(imageReviewQuery, imageInserts,
                                 function(err, rows) {
                                     if (err) callback(msg(1, 'query err : ' + err, []));
                                     else
@@ -91,7 +94,13 @@ function reviewList(req, res) {
                                         if (err) callback(msg(1, 'query err : ' + err, []));
                                         else {
                                             rating[i] = rows[0].cnt;
-                                            if (i == 5) callback(null, rating);
+                                            rating[6] += rows[0].cnt * i * 20;
+                                            console.log(rating[6]);
+                                            total += rows[0].cnt;
+                                            if (i == 5) {
+                                                rating[6] = Math.round(rating[6] / total);
+                                                callback(null, rating);
+                                            }
                                         }
                                     });
                             }
@@ -100,7 +109,7 @@ function reviewList(req, res) {
                     },
                     function(callback) {
                         if (req.params.division == 2 || req.params.division == 3) {
-                            conn.query(comReviewQuery, inserts,
+                            conn.query(comReviewQuery, textInserts,
                                 function(err, rows) {
                                     if (err) callback(msg(1, 'query err : ' + err, []));
                                     else     callback(null, rows);
@@ -387,11 +396,17 @@ function removeReview(req, res) {
         } else {
             async.series([
                 function(callback) {
-                    conn.query('delete from review_image_url where review_id = ?', [req.body.review_id],
+                    conn.beginTransaction(function(err) {
+                        if(err) callback(msg(1, 'transaction err : ' + err, []));
+                        else    callback(null, 'transaction start');
+                    });
+                },
+                function(callback) {
+                    conn.query('delete from review_image_url where review_id=?', [req.body.review_id],
                         function(err, rows) {
                             if (err) {
                                 console.log(err);
-                                callbacK({
+                                callback({
                                     err: {
                                         code: 1,
                                         msg: 'query err'
@@ -405,7 +420,7 @@ function removeReview(req, res) {
                 },
                 function(callback) {
                     // 자기가 작성한 리뷰만 지우도록 바꾸기
-                    conn.query('delete from review where review_id = ?', [req.body.review_id],
+                    conn.query('delete from review where review_id=? and user_id=?', [req.body.review_id, req.body.user_id],
                         function(err, rows) {
                             if (err) {
                                 console.log(err);
@@ -432,15 +447,11 @@ function removeReview(req, res) {
             ], function(err, result) {
                 if (err) {
                     res.send(err);
+                    conn.rollback;
                     conn.release();
                 } else {
-                    res.send({
-                        err: {
-                            err: 0,
-                            msg: ''
-                        },
-                        data: []
-                    });
+                    res.send(msg(0, 'success', []));
+                    conn.commit;
                     conn.release();
                 }
             });
@@ -559,7 +570,7 @@ function searchReview(req, res) {
 
 function myReviewList(req, res) {
     var userQuery = 'select user_id, prof_image_url, age, height, weight from user where user_id=?';
-    var revQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, r.review_id, r.review_content, url.review_image_url, r.weight, r.height from review r join product p on r.prod_id = p.prod_id join review_image_url url on r.review_id = url.review_id and r.user_id=? group by r.review_id';
+    var revQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, r.review_id, r.review_content, url.review_image_url, r.prod_rating, r.weight, r.height from review r join product p on r.prod_id = p.prod_id join review_image_url url on r.review_id = url.review_id and r.user_id=? group by r.review_id';
     var userInfo;
 
     pool.getConnection(function(err, conn) {
@@ -572,43 +583,33 @@ function myReviewList(req, res) {
                         async.waterfall([
                                 function(done) {
                                     conn.query(userQuery, [req.body.user_id], function(err, rows) {
-                                        if (err)
-                                            done(msg(1, 'query err : ' + err, []));
-                                        else
-                                            done(null, rows[0]);
+                                        if (err)  done(msg(1, 'query err : ' + err, []));
+                                        else      done(null, rows[0]);
                                     });
                                 },
                                 function(arg, done) {
                                     if (req.body.my_id != -1) {
                                         conn.query('select user_id from following_list where following_id=? and user_id=?', [arg.user_id, req.body.my_id],
                                             function(err, rows) {
-                                                if (err)
-                                                    done(msg(1, 'query err : ' + err, []));
+                                                if (err) done(msg(1, 'query err : ' + err, []));
                                                 else {
-                                                    if (rows.length < 1)
-                                                        arg.followMe = 0;
-                                                    else
-                                                        arg.followMe = 1;
+                                                    if (rows.length < 1)  arg.followMe = 0;
+                                                    else                  arg.followMe = 1;
                                                     done(null, arg);
                                                 }
                                             });
-                                    } else
-                                        done(null, arg);
+                                    } else done(null, arg);
                                 }
                             ],
                             function(err, result) {
-                                if (err)
-                                    callback(err);
-                                else
-                                    callback(null, result);
+                                if (err)  callback(err);
+                                else      callback(null, result);
                             });
                     },
                     function(callback) {
                         conn.query(revQuery, [req.body.user_id], function(err, rows) {
-                            if (err)
-                                callback(msg(1, 'query err : ' + err, []));
-                            else
-                                callback(null, rows);
+                            if (err)  callback(msg(1, 'query err : ' + err, []));
+                            else      callback(null, rows);
                         });
                     },
                 ],
@@ -619,10 +620,7 @@ function myReviewList(req, res) {
                         conn.release();
                     } else {
                         console.log(result);
-                        data = [{
-                            userInfo: result[0],
-                            reviewList: result[1]
-                        }];
+                        data = [{ userInfo: result[0], reviewList: result[1] }];
                         res.send(msg(0, 'success', data));
                         conn.release();
                     }
