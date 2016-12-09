@@ -44,7 +44,7 @@ router.route('/regist')
 
 router.route('/:keyword')
       .get(autoComplete)
-      .post(searchReview)
+      .post(searchProduct)
 
 function reviewList(req, res) {
     if (req.body.prod_id == -1) {
@@ -516,7 +516,7 @@ function autoComplete(req, res) {
     });
 }
 
-function searchReview(req, res) {
+function searchProduct(req, res) {
     var searchQuery = 'select prod_id, prod_name, prod_image_url, shopping_site_name, folder_count from product where prod_name like ?;';
     pool.getConnection(function(err, conn) {
         if (err) {
