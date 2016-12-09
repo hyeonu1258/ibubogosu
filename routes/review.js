@@ -46,6 +46,9 @@ router.route('/:keyword')
       .get(autoComplete)
       .post(searchProduct)
 
+router.route('/category/:category')
+      .get(categoryReview)
+
 function reviewList(req, res) {
     if (req.body.prod_id == -1) {
         imageReviewQuery = 'select r.review_id, r.review_content, r.prod_rating, (select count(*) from like_list where review_id=?) as like_count, url.review_image_id, url.review_image_url, u.user_id, u.nickname, u.prof_image_url, u.type, u.age, u.height, u.weight, p.prod_id, p.prod_name, p.prod_purchase_site_url, p.shopping_site_name, (select count(*) from prod_list pl join folder f on pl.folder_id = f.folder_id where user_id=? and prod_id=p.prod_id) as putCheck, (select count(*) from like_list where user_id=? and review_id=r.review_id) as likeCheck from review r join product p on r.prod_id=p.prod_id and p.prod_id=(select prod_id from review where review_id=?) and r.image_exist_chk=1 join user u on r.user_id=u.user_id and u.type=? join review_image_url url on r.review_id=url.review_id';
@@ -437,11 +440,33 @@ function ratingReview(req, res) {
                             res.send(msg(1, 'no data', []));
                         } else {
                             console.log('get review by rating success');
-                            res.send(msg(0, 'rating review success', []));
+                            res.send(msg(0, 'rating review success', rows));
                         }
                     }
                     conn.release();
                 });
+        }
+    });
+}
+
+function categoryReview(req, res) {
+    pool.getConnection(function(err, conn) {
+        if(err) {
+            console.log(err);
+            res.send(msg(1, 'db connection err : ' + err, []));
+            conn.release();
+        } else {
+            conn.query('select * from review r join review_image_url url on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where p.category=? group by r.review_id', [req.params.category], function(err, rows) {
+                if(err) {
+                    console.log(err);
+                    res.send(msg(1, 'query err : ' + err, []));
+                    conn.release();
+                } else {
+                    console.log(rows);
+                    res.send(msg(1, 'category review success', rows));
+                    conn.release();
+                }
+            });
         }
     });
 }
