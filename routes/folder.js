@@ -19,7 +19,7 @@ router.route('/:folder_id/product')
 // 그러나 애초에 등록, 삭제시 조건문에 folder_name, user_id를 넣는다면 user_id를 통해 유저 확인 과정이 내포되므로 전체적은 흐름이 간단해진다.
 router.route('/:folder_name/product/:prod_id')
       .post(registProduct)
-      .put(deleteProduct);
+      .put(deleteProduct)
 
 router.route('/:folder_name/product/:prod_id/:location')
       .put(moveProduct)
@@ -96,17 +96,29 @@ function deleteFolder(req, res) {
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query('delete from folder where folder_name=? and user_id=?', [req.params.folder_name, req.body.user_id], function(err, rows) {
-                if(err) {
-                    console.log('query err : ' + err);
-                    res.send(msg(1, 'query err : ' + err, []));
-                    conn.release();
-                } else {
-                    console.log('success');
-                    res.send(msg(0, 'success', []));
-                    conn.release();
-                }
-            });
+            async.series([
+              function(callback) {
+                  conn.query('delete from prod_list where folder_id=(select folder_id from folder where folder_name=? and user_id=?)', [req.params.folder_name, req.body.user_id], function(err, rows) {
+                      if(err)   callback(msg(1, 'query err: ' + err, []));
+                      else      callback(null, 'delete prod_list success');
+                  });
+              },
+              function(callback) {
+                  conn.query('delete from folder where folder_name=? and user_id=?', [req.params.folder_name, req.body.user_id], function(err, rows) {
+                    if(err)   callback(msg(1, 'query err: ' + err, []));
+                    else      callback(null, 'delete folder success');
+                });
+            }
+          ], function(err, result) {
+              if(err) {
+                  console.log(err);
+                  res.send(err);
+              } else {
+                  console.log(result);
+                  res.send(msg(0, 'success', result));
+              }
+              conn.release();
+          }}
         }
     });
 }
@@ -150,7 +162,7 @@ function registProduct(req, res) {
         } else {
             async.series([
                 function(callback) {
-                    conn.query('select folder_id from folder where folder_name=? and user_id=?', [req.params.folder_name, req.body.user_id], function(err, rows) {
+                    conn.query('select folder_name from folder where folder_name=? and user_id=?', [req.params.folder_name, req.body.user_id], function(err, rows) {
                         if(err)   callback(msg(1, 'query err : ' + err, []));
                         else {
                             if(rows.length < 1) folderCheck = false;
@@ -161,7 +173,7 @@ function registProduct(req, res) {
                 },
                 function(callback) {
                     if(folderCheck == false) {
-                        conn.query('insert into folder(folder_name, user_id) values(?, ?)', ['기본 폴더', req.body.user_id], function(err, rows) {
+                        conn.query('insert into folder(folder_name, user_id) values(?, ?)', [req.params.folder_name, req.body.user_id], function(err, rows) {
                             if(err)   callback(msg(1, 'query err : ' + err, []));
                             else      callback(null, 'regist basic folder success');
                         });
@@ -184,7 +196,7 @@ function registProduct(req, res) {
           ], function(err, result) {
                 if(err) {
                     console.log(err);
-                    res.send(msg(1, err, []));
+                    res.send(err);
                     conn.release();
                 } else {
                     console.log(result);
