@@ -108,7 +108,7 @@ function deleteFolder(req, res) {
                     if(err)   callback(msg(1, 'query err: ' + err, []));
                     else      callback(null, 'delete folder success');
                 });
-            }
+              }
           ], function(err, result) {
               if(err) {
                   console.log(err);
@@ -118,9 +118,9 @@ function deleteFolder(req, res) {
                   res.send(msg(0, 'success', result));
               }
               conn.release();
-          }}
+            });
         }
-    });
+  });
 }
 
 function showProductList(req, res) {
