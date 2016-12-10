@@ -219,11 +219,11 @@ function deleteProduct(req, res) {
                 if(err) {
                     console.log('query err : ' + err);
                     res.send(msg(1, 'query err : ' + err, []));
-                    conn.release();
                 } else {
                     console.log(rows);
                     res.send(msg(0, 'success', []));
                 }
+                conn.release();
           });
         }
     });

@@ -450,22 +450,27 @@ function ratingReview(req, res) {
 }
 
 function categoryReview(req, res) {
+    var categoryQuery = 'select p.prod_id, p.prod_name, url.review_image_url, p.shopping_site_name, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from review where prod_id=p.prod_id) as review_count from review r join review_image_url url on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where p.category=? group by r.review_id';
     pool.getConnection(function(err, conn) {
         if(err) {
             console.log(err);
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query('select * from review r join review_image_url url on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where p.category=? group by r.review_id', [req.params.category], function(err, rows) {
+            conn.query(categoryQuery, [req.params.category], function(err, rows) {
                 if(err) {
                     console.log(err);
                     res.send(msg(1, 'query err : ' + err, []));
-                    conn.release();
                 } else {
-                    console.log(rows);
-                    res.send(msg(1, 'category review success', rows));
-                    conn.release();
+                    if(rows.length < 1) {
+                      console.log('category query result is 0');
+                      res.send(msg(1, 'no data', []));
+                    } else {
+                      console.log(rows);
+                      res.send(msg(0, 'category review success', rows));
+                    }
                 }
+                conn.release();
             });
         }
     });
