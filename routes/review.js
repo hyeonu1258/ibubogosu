@@ -5,6 +5,7 @@ const aws = require('aws-sdk');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
 const msg = require('./message');
+const push = require('./pushAlarm');
 
 // merge
 aws.config.loadFromPath('./config/aws_config.json');
@@ -224,7 +225,7 @@ function registReview(req, res) {
                                 else      callback(null, 'regist review image success');
                             });
                     }
-                }
+                },
             ],
             function(err, result) {
                 if (err) {
@@ -233,6 +234,7 @@ function registReview(req, res) {
                     conn.rollback();
                 } else {
                     console.log('result : ', result);
+                    push('test', 'testetet');
                     res.send(msg(0, 'upload review success', []));
                     conn.commit();
                 }

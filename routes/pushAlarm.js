@@ -1,6 +1,5 @@
 const request = require('request');
 const FCM = require('fcm-push');
-const fcm = new FCM(apiKey);
 
 function sendTopicMessage(title, content) {
     var message = {
@@ -12,12 +11,14 @@ function sendTopicMessage(title, content) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': ''
+            'Authorization': 'key=AAAACU7l7Qc:APA91bEx_u45qGBWI84YqMTadLFkXR0k7_3ZuwHb_1oy6R1XhpwfrLqvj_YHRrpr68TixPu167L4Q9D6EwaI1z3DWSfGL86v7oqIUZwWqnFFAqVyMaP3q6JZirO5lPhLQ7vKmkQpivOZyxbxNgaAexX1vf51I1wi7Q'
         },
         body: JSON.stringify({
-            "to": "",
+            "to": "feq95A7nKz8:APA91bHElwZqG_fEIpeNsJR_enDe_u65QkWz7wAwpeH-2UmT_O5ASoTW4zqZ_DGS4wPpxU2xFAT2voeqqWUiCJ9KiDXSZq3txKNzKAp2R6eR4-dJshjmISwCjPMx5Oc_h4jjsYVUCiTA",
+            // "to": "d0XNfnsD2Uk:APA91bF8HVnx5AJM1_Kg9v5q5ZEduZwH1ETJOPnvhQVke1nsNoMg_q1o93Ie7ZDvXDGksV5P_oeJv58r2G4cwbUiduZpN-hirKOMpXXBqX_6A605KDCHNtCDxNAGlNiJZbq7XYSKxDVn",
             "data": {
-                "message": message
+                "title" : title,
+                "content" : content
             },
             // "notification": {
             //     "body": "great match!",
@@ -28,7 +29,7 @@ function sendTopicMessage(title, content) {
     }, function(error, response, body) {
         if (error)                            console.error(error, response, body);
         else if (response.statusCode >= 400)  console.error('HTTP Error: ' + response.statusCode + ' - ' + response.statusMessage + '\n' + body);
-        else                                  console.log('Done')
+        else                                  console.log('Done : ' + body);
     });
 }
 
@@ -52,6 +53,4 @@ function sendTopicMessage(title, content) {
 //         else                                  console.log('Done')
 //     });
 // }
-
-// askGroup();
-sendTopicMessage('hi', 'test');
+module.exports = sendTopicMessage;

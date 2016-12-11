@@ -12,7 +12,7 @@ var prodNRev = require('./routes/prodnrev');
 var follow = require('./routes/follow');
 var like = require('./routes/like');
 var folder = require('./routes/folder');
-var pushAlert = require('./routes/pushAlert');
+var pushAlarm = require('./routes/pushAlarm');
 
 var app = express();
 
@@ -39,7 +39,7 @@ app.use('/prodnrev', prodNRev);
 app.use('/follow', follow);
 app.use('/like', like);
 app.use('/folder', folder);
-app.use('/pushAlert', pushAlert);
+app.use('/pushAlarm', pushAlarm);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
