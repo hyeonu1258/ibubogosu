@@ -10,7 +10,13 @@ router.route('/:type/:count')
       .post(prodList);
 
 function prodList(req, res) {
-    prodQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, p.folder_count, (select count(*) from review where p.prod_id = review.prod_id) as review_count, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from prod_list pl join folder f on pl.folder_id = f.folder_id where user_id=? and prod_id=p.prod_id) as putCheck from product p join review r on p.prod_id = r.prod_id and r.image_exist_chk = 1 and r.type = ? group by p.prod_id having count(review_id) > 2 order by rand() limit ?, ?';
+    if(req.params.type == 100) {
+        prodQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, p.folder_count, (select count(*) from review where p.prod_id = review.prod_id) as review_count, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from prod_list pl join folder f on pl.folder_id = f.folder_id where user_id=? and prod_id=p.prod_id) as putCheck from product p join review r on p.prod_id = r.prod_id and r.image_exist_chk = 1 group by p.prod_id having count(review_id) > 2 order by rand() limit ?, ?';
+        inserts = [req.body.user_id, (req.params.count - 1) * 50, 50]
+    } else {
+        prodQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, p.folder_count, (select count(*) from review where p.prod_id = review.prod_id) as review_count, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from prod_list pl join folder f on pl.folder_id = f.folder_id where user_id=? and prod_id=p.prod_id) as putCheck from product p join review r on p.prod_id = r.prod_id and r.image_exist_chk = 1 and r.type = ? group by p.prod_id having count(review_id) > 2 order by rand() limit ?, ?';
+        inserts = [req.body.user_id, req.params.type, (req.params.count - 1) * 50, 50]
+    }
     revQuery = 'select url.review_id, url.review_image_id, url.review_image_url from review_image_url url join review r on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where r.prod_id = ? group by r.review_id;';
     productList = [];
     rating = [];
@@ -22,7 +28,7 @@ function prodList(req, res) {
             } else {
                 async.waterfall([
                         function(callback) {
-                            conn.query(prodQuery, [req.body.user_id, req.params.type, (req.params.count - 1) * 50, 50],
+                            conn.query(prodQuery, inserts,
                                 function(err, rows) {
                                     if (err) callback(msg(1, 'query err : ' + err, []));
                                     else
