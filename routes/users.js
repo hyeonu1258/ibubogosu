@@ -27,9 +27,7 @@ function registUser(req, res) {
                         if (err) callback(msg(1, 'query err: ' + err, []));
                         else
                             if(rows.length < 1) callback(null, 'success');
-                            else
-                              if(req.body.kakao_id) callback(null, 'kakao login usr_id exist');
-                              else                  callback(msg(0, 'login success', []));
+                            else                callback(msg(0, 'login success', []));
                     });
                 },
                 function(callback) {

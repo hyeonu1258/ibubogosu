@@ -419,7 +419,6 @@ function myReviewList(req, res) {
 }
 
 function ratingReview(req, res) {
-    // TODO type도 넘기기
     ratingReviewQuery = 'select r.review_id, url.review_image_url, r.prod_rating from review r join product p on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and r.prod_id=? and r.type=?';
     inserts = [req.body.prod_id, req.body.type];
     if (req.body.prod_rating != -1) {
