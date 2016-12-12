@@ -379,7 +379,7 @@ function myReviewList(req, res) {
                                 },
                                 function(arg, done) {
                                     if (req.body.my_id != -1) {
-                                        conn.query('select user_id, nickname from following_list where following_id=? and user_id=?', [arg.user_id, req.body.my_id], function(err, rows) {
+                                        conn.query('select user_id from following_list where following_id=? and user_id=?', [arg.user_id, req.body.my_id], function(err, rows) {
                                                 if (err) done(msg(1, 'query err : ' + err, []));
                                                 else {
                                                     if (rows.length < 1)  arg.followMe = 0;
