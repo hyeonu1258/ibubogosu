@@ -47,7 +47,7 @@ router.route('/:keyword')
       .get(autoComplete)
       .post(searchProduct)
 
-router.route('/category/:category')
+router.route('/category/:category/:type')
       .get(categoryReview)
 
 function reviewList(req, res) {
@@ -420,8 +420,8 @@ function myReviewList(req, res) {
 
 function ratingReview(req, res) {
     // TODO type도 넘기기
-    ratingReviewQuery = 'select r.review_id, url.review_image_url, r.prod_rating from review r join product p on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and r.prod_id=? and r.prod_rating=?';
-    inserts = [req.body.prod_id, req.body.prod_rating];
+    ratingReviewQuery = 'select r.review_id, url.review_image_url, r.prod_rating from review r join product p on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and r.prod_id=? and r.type=?';
+    inserts = [req.body.prod_id, req.body.type];
     if (req.body.prod_rating != -1) {
         ratingReviewQuery += ' and r.prod_rating=?';
         inserts.push(req.body.prod_rating);
@@ -452,14 +452,14 @@ function ratingReview(req, res) {
 }
 
 function categoryReview(req, res) {
-    var categoryQuery = 'select p.prod_id, p.prod_name, url.review_image_url, p.shopping_site_name, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from review where prod_id=p.prod_id) as review_count from review r join review_image_url url on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where p.category=? group by r.review_id';
+    var categoryQuery = 'select p.prod_id, p.prod_name, url.review_image_url, p.shopping_site_name, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from review where prod_id=p.prod_id) as review_count from review r join review_image_url url on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where p.category=? and r.type=? group by r.review_id';
     pool.getConnection(function(err, conn) {
         if(err) {
             console.log(err);
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query(categoryQuery, [req.params.category], function(err, rows) {
+            conn.query(categoryQuery, [req.params.category, req.params.type], function(err, rows) {
                 if(err) {
                     console.log(err);
                     res.send(msg(1, 'query err : ' + err, []));
