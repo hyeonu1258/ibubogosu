@@ -13,7 +13,7 @@ router.route('/:folder_name')
       .put(deleteFolder)
 
 router.route('/:folder_id/product')
-      .get(showProductList)
+      .post(showProductList)
 
 // folder_id를 받아 폴더 등록, 삭제처리를 한다면 등록, 삭제하는 단계는 간단하겠지만 그전에 해당 유저가 맞는지에 대해 확인하는 쿼리가 선행되어야 하므로 전체적인 코드가 복잡해진다.
 // 그러나 애초에 등록, 삭제시 조건문에 folder_name, user_id를 넣는다면 user_id를 통해 유저 확인 과정이 내포되므로 전체적은 흐름이 간단해진다.
@@ -124,14 +124,14 @@ function deleteFolder(req, res) {
 }
 
 function showProductList(req, res) {
-    var prodListQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, url.review_image_url, (select count(*) from prod_list where prod_id=p.prod_id) as putCount, (select count(*) from review where review.prod_id=p.prod_id) as reviewCount from prod_list pl join product p on pl.prod_id = p.prod_id join folder f on pl.folder_id = f.folder_id join review r on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and f.folder_id=? group by p.prod_id';
+    var prodListQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, url.review_image_url, (select count(*) from prod_list where prod_id=p.prod_id) as putCount, (select count(*) from review r where r.prod_id=p.prod_id and r.type=?) as reviewCount from prod_list pl join product p on pl.prod_id = p.prod_id join folder f on pl.folder_id = f.folder_id join review r on p.prod_id = r.prod_id join review_image_url url on r.review_id = url.review_id and f.folder_id=? group by p.prod_id';
     pool.getConnection(function(err, conn) {
         if(err) {
             console.log('db connection err : ' + err);
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query(prodListQuery, [req.params.folder_id], function(err, rows) {
+            conn.query(prodListQuery, [req.body.type, req.params.folder_id], function(err, rows) {
                 if(err) {
                     console.log('query err : ' + err);
                     res.send(msg(1, 'query err : ' + err, []));

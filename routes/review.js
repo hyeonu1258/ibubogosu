@@ -331,14 +331,14 @@ function autoComplete(req, res) {
 }
 
 function searchProduct(req, res) {
-    var searchQuery = 'select prod_id, prod_name, prod_image_url, shopping_site_name, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from review where prod_id=p.prod_id) as review_count from product p where prod_name like ?;';
+    var searchQuery = 'select prod_id, prod_name, prod_image_url, shopping_site_name, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from review r where r.prod_id=p.prod_id and r.type=?) as review_count from product p where prod_name like ?;';
     pool.getConnection(function(err, conn) {
         if (err) {
             console.log('db connection err', err);
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query(searchQuery, ['%' + req.body.keyword + '%'], function(err, rows) {
+            conn.query(searchQuery, [req.body.type, '%' + req.body.keyword + '%'], function(err, rows) {
                     if (err) {
                         console.log('search query err', err);
                         res.send(msg(1, 'query err : ' + err, []));
@@ -450,14 +450,14 @@ function ratingReview(req, res) {
 }
 
 function categoryReview(req, res) {
-    var categoryQuery = 'select p.prod_id, p.prod_name, url.review_image_url, p.shopping_site_name, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from review where prod_id=p.prod_id) as review_count from review r join review_image_url url on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where p.category=? and r.type=? group by r.review_id';
+    var categoryQuery = 'select p.prod_id, p.prod_name, url.review_image_url, p.shopping_site_name, (select count(*) from prod_list where prod_id=p.prod_id) as folder_count, (select count(*) from review r where r.prod_id=p.prod_id and r.type=?) as review_count from review r join review_image_url url on r.review_id = url.review_id join product p on r.prod_id = p.prod_id where p.category=? and r.type=? group by r.review_id';
     pool.getConnection(function(err, conn) {
         if(err) {
             console.log(err);
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query(categoryQuery, [req.params.category, req.params.type], function(err, rows) {
+            conn.query(categoryQuery, [req.params.type, req.params.category, req.params.type], function(err, rows) {
                 if(err) {
                     console.log(err);
                     res.send(msg(1, 'query err : ' + err, []));
