@@ -45,6 +45,8 @@ router.route('/regist')
 
 router.route('/:keyword')
       .get(autoComplete)
+
+router.route('/')
       .post(searchProduct)
 
 router.route('/category/:category/:type')
@@ -338,7 +340,7 @@ function searchProduct(req, res) {
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query(searchQuery, ['%' + req.params.keyword + '%'], function(err, rows) {
+            conn.query(searchQuery, ['%' + req.body.keyword + '%'], function(err, rows) {
                     if (err) {
                         console.log('search query err', err);
                         res.send(msg(1, 'query err : ' + err, []));
