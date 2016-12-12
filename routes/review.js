@@ -43,10 +43,8 @@ router.route('/update')
 router.route('/regist')
       .post(upload.single('review_image'), registReview);
 
-router.route('/:keyword')
-      .get(autoComplete)
-
 router.route('/')
+      .put(autoComplete)
       .post(searchProduct)
 
 router.route('/category/:category/:type')
@@ -311,7 +309,7 @@ function autoComplete(req, res) {
             res.send(msg(1, 'db connection err : ' + err, []));
             conn.release();
         } else {
-            conn.query(autoQuery, ['%' + req.params.keyword + '%'], function(err, rows) {
+            conn.query(autoQuery, ['%' + req.body.keyword + '%'], function(err, rows) {
                     if (err) {
                         console.log('auto query err', err);
                         res.send(msg(1, 'query err : ' + err, []));
