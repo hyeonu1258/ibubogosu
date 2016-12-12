@@ -358,8 +358,7 @@ function searchProduct(req, res) {
 }
 
 function myReviewList(req, res) {
-    var userQuery = 'select user_id, prof_image_url, age, height, weight from user where user_id=?';
-    var userQuery = 'select user_id, prof_image_url, age, height, weight, (select count(*) ) from user where user_id=?';
+    var userQuery = 'select user_id, nickname, prof_image_url, age, height, weight, (select count(*) ) from user where user_id=?';
     var revQuery = 'select p.prod_id, p.prod_name, p.shopping_site_name, r.review_id, r.review_content, url.review_image_url, r.prod_rating, r.weight, r.height from review r join product p on r.prod_id = p.prod_id join review_image_url url on r.review_id = url.review_id and r.user_id=? group by r.review_id';
     var userInfo;
 
@@ -380,7 +379,7 @@ function myReviewList(req, res) {
                                 },
                                 function(arg, done) {
                                     if (req.body.my_id != -1) {
-                                        conn.query('select user_id from following_list where following_id=? and user_id=?', [arg.user_id, req.body.my_id], function(err, rows) {
+                                        conn.query('select user_id, nickname from following_list where following_id=? and user_id=?', [arg.user_id, req.body.my_id], function(err, rows) {
                                                 if (err) done(msg(1, 'query err : ' + err, []));
                                                 else {
                                                     if (rows.length < 1)  arg.followMe = 0;

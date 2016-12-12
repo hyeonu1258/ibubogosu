@@ -16,7 +16,7 @@ router.route('/follower')
     .post(showFollowerList);
 
 function showFollowingList(req, res) {
-    var followQuery = 'select u.user_id, u.prof_image_url, u.height, u.weight from user u join following_list f on u.user_id = f.following_id and f.user_id=?';
+    var followQuery = 'select u.user_id, u.nickname, u.prof_image_url, u.height, u.weight from user u join following_list f on u.user_id = f.following_id and f.user_id=?';
     var followingList = [];
 
     pool.getConnection(function(err, conn) {
@@ -214,7 +214,7 @@ function showFollowerList(req, res) {
         } else {
             async.waterfall([
                 function(callback) {
-                    conn.query('select u.user_id, u.prof_image_url, u.height, u.weight from user u join following_list f on u.user_id = f.user_id and f.following_id=?', [req.body.user_id],
+                    conn.query('select u.user_id, u.nickname, u.prof_image_url, u.height, u.weight from user u join following_list f on u.user_id = f.user_id and f.following_id=?', [req.body.user_id],
                         function(err, rows) {
                             if (err)
                                 callback(msg(1, 'query err', []));
